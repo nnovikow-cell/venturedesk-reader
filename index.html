@@ -37,7 +37,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .seg{display:flex;gap:22px;margin-top:14px}
 .seg button{padding:8px 0 11px;font-weight:600;font-size:15px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
 .seg button.on{color:var(--fg);border-color:var(--fg)}
-.chips{display:flex;gap:8px;overflow-x:auto;padding:14px 0 4px;scrollbar-width:none}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:11px 0 12px;border-top:1px solid var(--line);scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;padding:6px 13px;border-radius:99px;border:1px solid var(--line);font-size:13.5px;color:var(--muted)}
 .chip.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
@@ -159,16 +159,16 @@ mark.hl.flash{animation:flash 1.4s ease}
   <header class="top"><div class="wrap">
     <div class="brand"><b>VentureDesk</b><span id="unread"></span></div>
     <nav class="seg"><button data-tab="lib" class="on">Library</button><button data-tab="hl">Highlights</button></nav>
+    <div class="chips" id="chips">
+      <button class="chip on" data-f="all">All</button>
+      <button class="chip" data-f="unread">Unread</button>
+      <button class="chip" data-f="dive">Deep dives</button>
+      <button class="chip" data-f="brief">Briefs</button>
+      <button class="chip" data-f="saved">With highlights</button>
+    </div>
   </div></header>
   <div class="wrap">
     <div id="libPane">
-      <div class="chips" id="chips">
-        <button class="chip on" data-f="all">All</button>
-        <button class="chip" data-f="unread">Unread</button>
-        <button class="chip" data-f="dive">Deep dives</button>
-        <button class="chip" data-f="brief">Briefs</button>
-        <button class="chip" data-f="saved">With highlights</button>
-      </div>
       <div id="list"><div class="load"><div class="spin"></div>Loading your library…</div></div>
     </div>
     <div id="hlPane" hidden></div>
@@ -384,13 +384,13 @@ async function loadList(quiet) {
 $("#list").addEventListener("click", (e) => { const b = e.target.closest(".item"); if (b) openPiece(+b.dataset.id); });
 $("#chips").addEventListener("click", (e) => {
   const c = e.target.closest(".chip"); if (!c) return;
-  S.filter = c.dataset.f; $$("#chips .chip").forEach((x) => x.classList.toggle("on", x === c)); renderList(); haptic();
+  S.filter = c.dataset.f; $$("#chips .chip").forEach((x) => x.classList.toggle("on", x === c)); renderList(); window.scrollTo(0, 0); haptic();
 });
 $$(".seg button").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
 function setTab(t) {
   S.tab = t;
   $$(".seg button").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
-  $("#libPane").hidden = t !== "lib"; $("#hlPane").hidden = t !== "hl";
+  $("#libPane").hidden = t !== "lib"; $("#hlPane").hidden = t !== "hl"; $("#chips").hidden = t !== "lib";
   window.scrollTo(0, 0);
   if (t === "hl") loadHighlights(); else renderList();
 }
