@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>VentureDesk</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400..700;1,7..72,400..700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FAF8F3; --fg:#1D1C1A; --muted:#77736B; --line:#E8E3D9; --card:#FFFFFF;
+  --accent:#2F5D8A; --on-accent:#FFFFFF; --hl:rgba(255,206,74,.55); --pend:rgba(47,93,138,.14);
+  --fs:19px; --serif:'Literata',Georgia,'Times New Roman',serif;
+  --sans:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+  --read:var(--serif);
+  --safe-b:max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px));
+}
+html[data-theme="sepia"]{--bg:#F4ECDA;--fg:#3A2E1F;--muted:#85745B;--line:#E2D5BA;--card:#F9F2E3;--accent:#7A4E22;--hl:rgba(218,160,40,.40);--pend:rgba(122,78,34,.14)}
+html[data-theme="night"]{--bg:#121316;--fg:#E4E1DA;--muted:#8D8A84;--line:#2A2C31;--card:#1B1D21;--accent:#8FB4E3;--on-accent:#101215;--hl:rgba(240,190,70,.30);--pend:rgba(143,180,227,.18)}
+html[data-font="sans"]{--read:var(--sans)}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font-family:var(--sans);font-size:15px;line-height:1.45;min-height:var(--tg-viewport-stable-height,100vh);touch-action:manipulation;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+[hidden]{display:none!important}
+.wrap{max-width:680px;margin:0 auto;padding:0 20px}
+
+/* ---------- library ---------- */
+.top{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 0 0;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.brand b{font:700 13px/1 var(--sans);letter-spacing:.16em;text-transform:uppercase}
+.brand span{font-size:12.5px;color:var(--muted)}
+.seg{display:flex;gap:22px;margin-top:14px}
+.seg button{padding:8px 0 11px;font-weight:600;font-size:15px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.seg button.on{color:var(--fg);border-color:var(--fg)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:14px 0 4px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:6px 13px;border-radius:99px;border:1px solid var(--line);font-size:13.5px;color:var(--muted)}
+.chip.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.day{font:600 11.5px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:26px 0 2px}
+.item{display:block;width:100%;text-align:left;padding:15px 0 16px;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.kick{display:flex;align-items:center;gap:7px;font:600 11px/1.2 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.kick .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
+.item h3{font:600 19px/1.28 var(--serif);margin:7px 0 0;letter-spacing:-.005em}
+.item.read h3{font-weight:430;color:var(--muted)}
+.stories{margin:7px 0 0;padding:0;list-style:none;font-size:14px;line-height:1.4;color:var(--muted)}
+.stories li{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.stories li::before{content:"· "}
+.meta{display:flex;gap:12px;margin-top:9px;font-size:12.5px;color:var(--muted)}
+.empty{padding:70px 10px;text-align:center;color:var(--muted);font-size:15px;line-height:1.55}
+.empty b{display:block;color:var(--fg);font:600 19px/1.3 var(--serif);margin-bottom:6px}
+
+/* ---------- highlights tab ---------- */
+.hlbar{display:flex;justify-content:space-between;align-items:center;padding:18px 0 4px;font-size:13px;color:var(--muted)}
+.hlbar button{color:var(--accent);font-weight:600;font-size:13.5px}
+.hgroup{padding:18px 0 6px;border-bottom:1px solid var(--line)}
+.hgroup:last-child{border-bottom:0}
+.hpiece{font:600 11px/1.3 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.hpiece em{display:block;font:600 16.5px/1.3 var(--serif);letter-spacing:0;text-transform:none;color:var(--fg);font-style:normal;margin-top:5px}
+.hq{margin:14px 0 0;padding:2px 0 2px 14px;border-left:3px solid var(--hl);font:400 17px/1.55 var(--serif)}
+.hq p{margin:0}
+.hacts{display:flex;gap:18px;margin-top:8px;font-size:12.5px}
+.hacts button{color:var(--muted);display:flex;align-items:center;gap:5px}
+
+/* ---------- reader ---------- */
+.prog{position:fixed;top:0;left:0;right:0;height:2px;z-index:9;background:transparent}
+.prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s linear}
+.rbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;height:46px;background:var(--bg);border-bottom:1px solid transparent;transition:border-color .2s}
+.rbar.lined{border-color:var(--line)}
+.rbar .back{display:flex;align-items:center;gap:2px;font-weight:600;font-size:15px;color:var(--accent)}
+.rbar .ttl{flex:1;min-width:0;padding:0 12px;font:600 13px/1 var(--sans);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;transition:opacity .2s}
+.rbar.lined .ttl{opacity:1}
+.aa{font:600 17px/1 var(--serif);padding:8px 2px 8px 12px}
+.aa small{font-size:12px}
+article{padding:22px 0 8px}
+.rkick{font:600 11.5px/1.3 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+article h1{font:650 calc(var(--fs) * 1.6)/1.15 var(--serif);letter-spacing:-.015em;margin:10px 0 12px}
+html[data-font="sans"] article h1{font-family:var(--sans);font-weight:700}
+.rmeta{font-size:13px;color:var(--muted);padding-bottom:22px;border-bottom:1px solid var(--line)}
+#body{font-family:var(--read);font-size:var(--fs);line-height:1.66;padding-top:6px;overflow-wrap:break-word}
+#body p{margin:0 0 1.05em;white-space:pre-line}
+#body h2{font:650 calc(var(--fs) * 1.12)/1.3 var(--read);margin:1.7em 0 .55em;letter-spacing:-.005em}
+#body .sep{text-align:center;color:var(--muted);letter-spacing:.6em;margin:1.6em 0 .4em;font-size:15px}
+#body a{color:var(--accent);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px}
+#body h2.challenge{color:var(--accent)}
+#body p.challenge{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);border-top:0;border-bottom:0;border-radius:0;margin:0;padding:.45em 16px}
+#body h2.challenge+p.challenge{border-top:1px solid var(--line);border-radius:10px 10px 0 0;padding-top:14px}
+#body p.challenge:not(:has(+p.challenge)){border-bottom:1px solid var(--line);border-radius:0 0 10px 10px;padding-bottom:14px;margin-bottom:1.05em}
+#body h2.challenge+p.challenge:not(:has(+p.challenge)){border-radius:10px}
+#body h2.sources{font:600 12px/1 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:2.2em}
+#body p.sources{font-family:var(--sans);font-size:14px;line-height:1.6;color:var(--muted)}
+.s{border-radius:3px;transition:background-color .15s}
+.s.pend{background:var(--pend);box-shadow:0 0 0 2px var(--pend)}
+mark.hl{background:var(--hl);color:inherit;border-radius:2px;padding:0;box-shadow:0 0 0 1px var(--hl)}
+mark.hl.flash{animation:flash 1.4s ease}
+@keyframes flash{0%,40%{box-shadow:0 0 0 5px var(--hl)}100%{box-shadow:0 0 0 1px var(--hl)}}
+.tip{margin:4px 0 0;font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+
+.end{margin:28px 0 0;padding:26px 0 calc(40px + var(--safe-b));border-top:1px solid var(--line)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:50px;border-radius:12px;font-weight:600;font-size:16px}
+.btn.primary{background:var(--accent);color:var(--on-accent)}
+.btn.done{background:transparent;border:1.5px solid var(--accent);color:var(--accent)}
+.btn.ghost{border:1px solid var(--line);font-size:15px;height:46px}
+.lbl{font:600 11.5px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:26px 0 10px}
+.rates{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.rates button{padding:11px 4px;border-radius:12px;border:1px solid var(--line);font-size:13.5px;font-weight:550;display:flex;flex-direction:column;align-items:center;gap:4px}
+.rates button span{font-size:21px;line-height:1}
+.rates button.on{border-color:var(--accent);background:var(--pend);color:var(--fg)}
+.note{display:flex;gap:8px;align-items:flex-end}
+.note textarea{flex:1;min-height:46px;max-height:140px;resize:none;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--fg);font:15px/1.4 var(--sans);padding:12px 13px}
+.note textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.note button{height:46px;padding:0 16px;border-radius:12px;background:var(--fg);color:var(--bg);font-weight:600}
+.prev{color:var(--muted);font-size:13px;margin-top:8px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:26px}
+
+/* ---------- sheets ---------- */
+.scrim{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.18)}
+.scrim.clear{background:transparent;pointer-events:none}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--card);border-top:1px solid var(--line);border-radius:18px 18px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.14);padding:14px 18px calc(14px + var(--safe-b));transform:translateY(105%);transition:transform .22s cubic-bezier(.2,.8,.2,1)}
+.sheet.open{transform:none}
+.sheet .grab{width:36px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 12px}
+.sq{font:italic 400 15.5px/1.45 var(--serif);color:var(--fg);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;padding-left:11px;border-left:3px solid var(--hl)}
+.sacts{display:flex;gap:8px;margin-top:14px}
+.sacts button{flex:1;height:46px;border-radius:12px;border:1px solid var(--line);font-weight:600;font-size:15px}
+.sacts button.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent);flex:1.4}
+.sacts button.x{flex:0 0 46px;color:var(--muted)}
+.set{margin-top:4px}
+.set .r{display:flex;align-items:center;gap:14px;padding:12px 0}
+.set .r+.r{border-top:1px solid var(--line)}
+.set input[type=range]{flex:1;accent-color:var(--accent)}
+.set .sm{font:500 14px var(--serif)}.set .lg{font:500 24px var(--serif)}
+.opt{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;flex:1}
+.opt button{height:44px;border-radius:11px;border:1px solid var(--line);font-size:14px;font-weight:550}
+.opt button.on{border:2px solid var(--accent)}
+.sw{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.sw i{width:40px;height:40px;border-radius:50%;border:1px solid rgba(128,128,128,.35);display:grid;place-items:center;font:600 15px var(--serif);font-style:normal}
+.sw.on i{outline:2px solid var(--accent);outline-offset:2px}
+.toast{position:fixed;left:50%;bottom:calc(26px + var(--safe-b));z-index:30;transform:translate(-50%,20px);opacity:0;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:99px;font-size:14px;font-weight:550;transition:all .2s;pointer-events:none;white-space:nowrap}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.sheet.open~.toast{bottom:auto;top:calc(58px + env(safe-area-inset-top));transform:translate(-50%,-10px)}
+.sheet.open~.toast.on{transform:translate(-50%,0)}
+
+.load{padding:90px 0;text-align:center;color:var(--muted)}
+.spin{width:22px;height:22px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 12px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.skel{height:15px;border-radius:6px;background:var(--line);opacity:.6;margin:12px 0}
+</style>
+</head>
+<body>
+<div class="prog" id="prog" hidden><i></i></div>
+
+<!-- Library -->
+<section id="vLib">
+  <header class="top"><div class="wrap">
+    <div class="brand"><b>VentureDesk</b><span id="unread"></span></div>
+    <nav class="seg"><button data-tab="lib" class="on">Library</button><button data-tab="hl">Highlights</button></nav>
+  </div></header>
+  <div class="wrap">
+    <div id="libPane">
+      <div class="chips" id="chips">
+        <button class="chip on" data-f="all">All</button>
+        <button class="chip" data-f="unread">Unread</button>
+        <button class="chip" data-f="dive">Deep dives</button>
+        <button class="chip" data-f="brief">Briefs</button>
+        <button class="chip" data-f="saved">With highlights</button>
+      </div>
+      <div id="list"><div class="load"><div class="spin"></div>Loading your library…</div></div>
+    </div>
+    <div id="hlPane" hidden></div>
+    <div style="height:calc(30px + var(--safe-b))"></div>
+  </div>
+</section>
+
+<!-- Reader -->
+<section id="vRead" hidden>
+  <div class="rbar" id="rbar"><div class="wrap" style="display:flex;align-items:center;width:100%">
+    <button class="back" id="backBtn" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>Library</button>
+    <div class="ttl" id="rTitleMini"></div>
+    <button class="aa" id="aaBtn" aria-label="Text settings"><small>A</small>A</button>
+  </div></div>
+  <div class="wrap">
+    <article>
+      <div class="rkick" id="rKick"></div>
+      <h1 id="rTitle"></h1>
+      <div class="rmeta" id="rMeta"></div>
+      <div id="body"></div>
+      <p class="tip" id="tip">Tap a sentence to highlight it, or press and drag to select.</p>
+    </article>
+    <section class="end" id="end">
+      <button class="btn primary" id="readBtn"></button>
+      <div class="lbl">How was it?</div>
+      <div class="rates" id="rates">
+        <button data-r="useful"><span>💡</span>Useful</button>
+        <button data-r="interesting"><span>🤔</span>Interesting</button>
+        <button data-r="not_much"><span>😐</span>Not so much</button>
+      </div>
+      <div class="lbl">Note for VentureDesk</div>
+      <div class="note"><textarea id="noteIn" rows="1" placeholder="More of this, less of that…"></textarea><button id="noteSend">Send</button></div>
+      <div class="prev" id="notePrev" hidden></div>
+      <div class="row2">
+        <button class="btn ghost" id="pdfBtn">📄 PDF to chat</button>
+        <button class="btn ghost" id="toLib">📚 Library</button>
+      </div>
+    </section>
+  </div>
+</section>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="selSheet" role="dialog">
+  <div class="grab"></div>
+  <div class="sq" id="sq"></div>
+  <div class="sacts" id="sacts"></div>
+</div>
+<div class="sheet" id="aaSheet" role="dialog" aria-label="Text settings">
+  <div class="grab"></div>
+  <div class="set">
+    <div class="r"><button class="sm" id="fsDn">A</button><input type="range" id="fsR" min="15" max="27" step="1"><button class="lg" id="fsUp">A</button></div>
+    <div class="r"><div class="opt" id="fontOpt"><button data-v="serif" style="font-family:var(--serif)">Literata</button><button data-v="sans" style="font-family:var(--sans)">Sans</button></div></div>
+    <div class="r" style="justify-content:space-around" id="themeOpt">
+      <button class="sw" data-v="auto"><i style="background:linear-gradient(135deg,#fff 50%,#1b1d21 50%);color:#888">A</i>Auto</button>
+      <button class="sw" data-v="paper"><i style="background:#FAF8F3;color:#1D1C1A">Aa</i>Paper</button>
+      <button class="sw" data-v="sepia"><i style="background:#F4ECDA;color:#3A2E1F">Aa</i>Sepia</button>
+      <button class="sw" data-v="night"><i style="background:#121316;color:#E4E1DA">Aa</i>Night</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+"use strict";
+const API = "https://bopwuspfuepjntmyiane.supabase.co/functions/v1/venturedesk/api/";
+const tg = window.Telegram && window.Telegram.WebApp;
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const ver = (v) => !!(tg && tg.isVersionAtLeast && tg.isVersionAtLeast(v));
+const haptic = (k = "light") => { try { k === "success" ? tg.HapticFeedback.notificationOccurred("success") : tg.HapticFeedback.impactOccurred(k); } catch {} };
+const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+
+const S = { view: "lib", tab: "lib", filter: "all", items: null, hls: null, piece: null, libY: 0, sents: [], btext: [], sel: null, sheet: null };
+
+// ---------- API ----------
+async function call(route, body = {}) {
+  const r = await fetch(API + route, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-init-data": (tg && tg.initData) || "" },
+    body: JSON.stringify(body),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error || ("HTTP " + r.status)); e.status = r.status; throw e; }
+  return j;
+}
+
+// ---------- settings (font size, typeface, theme) ----------
+const SET = Object.assign({ fs: 19, font: "serif", theme: "auto" }, JSON.parse(lsGet("vd.settings") || "{}"));
+function saveSettings() {
+  const v = JSON.stringify(SET);
+  lsSet("vd.settings", v);
+  try { if (ver("6.9")) tg.CloudStorage.setItem("settings", v); } catch {}
+}
+function hexOf(c) { return /^#[0-9a-f]{6}$/i.test(c || "") ? c : null; }
+function applySettings() {
+  const root = document.documentElement;
+  root.style.setProperty("--fs", SET.fs + "px");
+  root.dataset.font = SET.font;
+  root.dataset.theme = SET.theme;
+  const props = ["--bg", "--fg", "--muted", "--line", "--card", "--accent", "--on-accent", "--hl", "--pend"];
+  props.forEach((p) => root.style.removeProperty(p));
+  if (SET.theme === "auto") {
+    const p = (tg && tg.themeParams) || {};
+    const dark = tg ? tg.colorScheme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    const base = dark
+      ? { bg: "#121316", fg: "#E4E1DA", muted: "#8D8A84", card: "#1B1D21", accent: "#8FB4E3", line: "#2A2C31" }
+      : { bg: "#FAF8F3", fg: "#1D1C1A", muted: "#77736B", card: "#FFFFFF", accent: "#2F5D8A", line: "#E8E3D9" };
+    const bg = hexOf(p.bg_color) || base.bg, fg = hexOf(p.text_color) || base.fg;
+    root.style.setProperty("--bg", bg);
+    root.style.setProperty("--fg", fg);
+    root.style.setProperty("--muted", hexOf(p.hint_color) || base.muted);
+    root.style.setProperty("--card", hexOf(p.secondary_bg_color) || base.card);
+    root.style.setProperty("--accent", hexOf(p.link_color) || hexOf(p.button_color) || base.accent);
+    root.style.setProperty("--on-accent", dark ? "#101215" : "#FFFFFF");
+    root.style.setProperty("--line", `color-mix(in srgb, ${fg} 11%, ${bg})`);
+    root.style.setProperty("--hl", dark ? "rgba(240,190,70,.30)" : "rgba(255,206,74,.55)");
+    root.style.setProperty("--pend", dark ? "rgba(143,180,227,.18)" : "rgba(47,93,138,.14)");
+  }
+  const bg = getComputedStyle(root).getPropertyValue("--bg").trim();
+  try { if (ver("6.1")) { tg.setHeaderColor(bg); tg.setBackgroundColor(bg); } if (ver("7.10")) tg.setBottomBarColor(bg); } catch {}
+  $("#fsR").value = SET.fs;
+  $$("#fontOpt button").forEach((b) => b.classList.toggle("on", b.dataset.v === SET.font));
+  $$("#themeOpt button").forEach((b) => b.classList.toggle("on", b.dataset.v === SET.theme));
+}
+
+// ---------- utils ----------
+let toastT;
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 1900);
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch {}
+  const ta = document.createElement("textarea"); ta.value = text; ta.setAttribute("readonly", "");
+  ta.style.cssText = "position:fixed;top:0;left:0;opacity:0"; document.body.appendChild(ta); ta.select();
+  let ok = false; try { ok = document.execCommand("copy"); } catch {} ta.remove(); return ok;
+}
+function openExternal(url) { try { tg.openLink(url); } catch { window.open(url, "_blank", "noopener"); } }
+const pad = (n) => String(n).padStart(2, "0");
+const isoDay = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+function dayLabel(iso) {
+  const today = new Date(); const y = new Date(); y.setDate(y.getDate() - 1);
+  const d = new Date(iso + "T12:00:00");
+  const long = d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+  if (iso === isoDay(today)) return "Today · " + long;
+  if (iso === isoDay(y)) return "Yesterday · " + long;
+  return long + (d.getFullYear() !== today.getFullYear() ? ", " + d.getFullYear() : "");
+}
+const RLAB = { useful: "💡", interesting: "🤔", not_much: "😐" };
+
+// ---------- sheets ----------
+function openSheet(id, scrimClear) {
+  closeSheets(true);
+  S.sheet = id;
+  const sc = $("#scrim"); sc.hidden = false; sc.classList.toggle("clear", !!scrimClear);
+  requestAnimationFrame(() => $("#" + id).classList.add("open"));
+}
+function closeSheets(silent) {
+  $$(".sheet").forEach((s) => s.classList.remove("open"));
+  $("#scrim").hidden = true; S.sheet = null;
+  if (!silent) clearPending();
+}
+$("#scrim").addEventListener("click", () => { closeSheets(); try { getSelection().removeAllRanges(); } catch {} });
+
+// ---------- library ----------
+function filtered() {
+  const f = S.filter, it = S.items || [];
+  if (f === "unread") return it.filter((x) => !x.read);
+  if (f === "dive") return it.filter((x) => x.type === "evening_deep_dive");
+  if (f === "brief") return it.filter((x) => x.type === "morning_brief");
+  if (f === "saved") return it.filter((x) => x.hl > 0);
+  return it;
+}
+function renderUnread() {
+  const n = (S.items || []).filter((x) => !x.read).length;
+  $("#unread").textContent = S.items ? (n ? `${n} unread` : "All caught up") : "";
+}
+function renderList() {
+  renderUnread();
+  const list = $("#list");
+  if (!S.items) return;
+  const items = filtered();
+  if (!items.length) {
+    list.innerHTML = S.filter === "all"
+      ? `<div class="empty"><b>Nothing here yet</b>Your briefs and deep dives will land here.</div>`
+      : `<div class="empty"><b>Nothing matches</b>${S.filter === "unread" ? "You're all caught up." : "Try another filter."}</div>`;
+    return;
+  }
+  let html = "", day = null;
+  for (const x of items) {
+    if (x.date !== day) { day = x.date; html += `<div class="day">${esc(dayLabel(day))}</div>`; }
+    const brief = x.type === "morning_brief";
+    const kick = brief ? "Morning Brief" : "Deep Dive · " + x.topic;
+    const stories = brief && x.stories.length ? `<ul class="stories">${x.stories.slice(0, 3).map((s) => `<li>${esc(s)}</li>`).join("")}</ul>` : "";
+    const meta = [`${x.mins} min`, x.hl ? `✨ ${x.hl}` : "", x.rating ? RLAB[x.rating] : "", x.read ? "✓ Read" : ""].filter(Boolean).map((m) => `<span>${m}</span>`).join("");
+    html += `<button class="item${x.read ? " read" : ""}" data-id="${x.id}">
+      <div class="kick">${x.read ? "" : '<span class="dot"></span>'}${esc(kick)}</div>
+      <h3>${esc(brief ? x.title.replace(/^Morning Brief\s*[—-]\s*/, "") || x.title : x.title)}</h3>${stories}
+      <div class="meta">${meta}</div></button>`;
+  }
+  list.innerHTML = html;
+}
+async function loadList(quiet) {
+  try {
+    const r = await call("list");
+    S.items = r.items;
+    if (S.view === "lib" && S.tab === "lib") renderList(); else renderUnread();
+  } catch (e) { if (!quiet) fatal(e); }
+}
+$("#list").addEventListener("click", (e) => { const b = e.target.closest(".item"); if (b) openPiece(+b.dataset.id); });
+$("#chips").addEventListener("click", (e) => {
+  const c = e.target.closest(".chip"); if (!c) return;
+  S.filter = c.dataset.f; $$("#chips .chip").forEach((x) => x.classList.toggle("on", x === c)); renderList(); haptic();
+});
+$$(".seg button").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
+function setTab(t) {
+  S.tab = t;
+  $$(".seg button").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
+  $("#libPane").hidden = t !== "lib"; $("#hlPane").hidden = t !== "hl";
+  window.scrollTo(0, 0);
+  if (t === "hl") loadHighlights(); else renderList();
+}
+
+// ---------- highlights tab ----------
+async function loadHighlights() {
+  const pane = $("#hlPane");
+  if (!S.hls) pane.innerHTML = `<div class="load"><div class="spin"></div>Loading highlights…</div>`;
+  try { S.hls = (await call("highlights")).items; renderHighlights(); }
+  catch (e) { pane.innerHTML = `<div class="empty"><b>Couldn't load highlights</b>${esc(e.message)}</div>`; }
+}
+function renderHighlights() {
+  const pane = $("#hlPane"), hs = S.hls || [];
+  if (!hs.length) {
+    pane.innerHTML = `<div class="empty"><b>No highlights yet</b>While reading, tap any sentence and hit ✨ Save.<br>Your best ideas collect here.</div>`;
+    return;
+  }
+  const groups = new Map();
+  for (const h of hs) { if (!groups.has(h.piece)) groups.set(h.piece, { h, list: [] }); groups.get(h.piece).list.push(h); }
+  let html = `<div class="hlbar"><span>${hs.length} highlight${hs.length === 1 ? "" : "s"}</span><button id="hlExport">Send all to chat</button></div>`;
+  for (const [pid, g] of groups) {
+    const kind = g.h.type === "morning_brief" ? "Morning Brief" : "Deep Dive";
+    html += `<div class="hgroup"><div class="hpiece">${kind} · ${esc(g.h.date ? dayLabel(g.h.date).replace(/^(Today|Yesterday) · /, "") : "")}<em>${esc(g.h.title)}</em></div>`;
+    for (const h of g.list.slice().reverse()) {
+      html += `<blockquote class="hq" data-p="${pid}" data-h="${h.id}"><p>${esc(h.quote)}</p>
+        <div class="hacts"><button data-act="open">Open ›</button><button data-act="copy">Copy</button><button data-act="del">Remove</button></div></blockquote>`;
+    }
+    html += `</div>`;
+  }
+  pane.innerHTML = html;
+}
+$("#hlPane").addEventListener("click", async (e) => {
+  if (e.target.closest("#hlExport")) {
+    try { await call("hl_export"); toast("Sent to your chat 📝"); haptic("success"); } catch (err) { toast("Couldn't send: " + err.message); }
+    return;
+  }
+  const q = e.target.closest(".hq"); if (!q) return;
+  const act = e.target.closest("[data-act]")?.dataset.act || "open";
+  const hid = +q.dataset.h, h = S.hls.find((x) => x.id === hid);
+  if (act === "copy") { (await copyText(h.quote)) ? toast("Copied") : toast("Couldn't copy"); return; }
+  if (act === "del") { confirmDo("Remove this highlight?", async () => { await deleteHl(hid, +q.dataset.p); renderHighlights(); }); return; }
+  openPiece(+q.dataset.p, { hl: hid });
+});
+function confirmDo(msg, fn) {
+  if (ver("6.2")) tg.showConfirm(msg, (ok) => ok && fn()); else if (confirm(msg)) fn();
+}
+async function deleteHl(hid, pid) {
+  try {
+    await call("hl_del", { hid });
+    if (S.hls) S.hls = S.hls.filter((x) => x.id !== hid);
+    const it = (S.items || []).find((x) => x.id === pid); if (it && it.hl) it.hl--;
+    if (S.piece && S.piece.id === pid) { S.piece.highlights = S.piece.highlights.filter((x) => x.id !== hid); unmark(hid); }
+    toast("Removed");
+  } catch (e) { toast("Couldn't remove: " + e.message); }
+}
+
+// ---------- reader: DOM text-range helpers ----------
+function markRange(el, start, end, make) {
+  if (end <= start) return;
+  const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const nodes = []; let pos = 0, n;
+  while ((n = w.nextNode())) { nodes.push([n, pos]); pos += n.data.length; }
+  for (const [node, at] of nodes) {
+    const len = node.data.length, a = Math.max(start, at), b = Math.min(end, at + len);
+    if (a >= b) continue;
+    let mid = node;
+    if (a > at) mid = mid.splitText(a - at);
+    if (b < at + len) mid.splitText(b - a);
+    const wrap = make(); mid.parentNode.insertBefore(wrap, mid); wrap.appendChild(mid);
+  }
+}
+const ABBR = /\b(e\.g|i\.e|etc|vs|Mr|Mrs|Ms|Dr|St|Inc|Co|Corp|Ltd|U\.S|U\.K|No|approx)\.$/i;
+function segment(text) {
+  const out = []; let start = 0, m;
+  const re = /([.!?…]+["”’)\]]*)([ \t\u00a0]+)|(\s*\n\s*)/g;
+  while ((m = re.exec(text))) {
+    let end, next;
+    if (m[3]) { end = m.index; next = m.index + m[3].length; }
+    else {
+      end = m.index + m[1].length; next = end + m[2].length;
+      if (/[a-z0-9]/.test(text[next] || "")) continue;
+      if (ABBR.test(text.slice(Math.max(start, end - 8), end))) continue;
+      if (/^\s*(\d{1,3}|[a-zA-Z])[.)]$/.test(text.slice(start, end))) continue; // "1." list markers
+    }
+    while (start < end && /\s/.test(text[start])) start++;
+    if (end > start) out.push([start, end]);
+    start = next;
+  }
+  while (start < text.length && /\s/.test(text[start])) start++;
+  if (start < text.length) out.push([start, text.replace(/\s+$/, "").length]);
+  return out;
+}
+function blockEl(b) { return $(`#body [data-b="${b}"]`); }
+function drawHl(h) {
+  for (let b = h.b1; b <= h.b2; b++) {
+    const el = blockEl(b); if (!el || el.classList.contains("sep")) continue;
+    const len = S.btext[b]?.length ?? 0;
+    const s = b === h.b1 ? Math.min(h.o1, len) : 0, e = b === h.b2 ? Math.min(h.o2, len) : len;
+    markRange(el, s, e, () => { const m = document.createElement("mark"); m.className = "hl"; m.dataset.h = h.id; return m; });
+  }
+}
+function unmark(id) { $$(`#body mark.hl[data-h="${id}"]`).forEach((m) => { const p = m.parentNode; m.replaceWith(...m.childNodes); p.normalize(); }); }
+
+// ---------- reader ----------
+async function openPiece(id, opts = {}) {
+  if (S.view === "lib") S.libY = window.scrollY;
+  closeSheets(true);
+  S.view = "read";
+  $("#vLib").hidden = true; $("#vRead").hidden = false; $("#prog").hidden = false;
+  $("#rKick").textContent = ""; $("#rTitle").textContent = ""; $("#rMeta").textContent = "";
+  $("#body").innerHTML = `<div class="skel" style="width:92%"></div><div class="skel"></div><div class="skel" style="width:80%"></div><div class="skel" style="width:88%"></div>`;
+  $("#end").hidden = true; $("#tip").hidden = true;
+  window.scrollTo(0, 0); setProgress();
+  if (ver("6.1")) tg.BackButton.show(); else $("#backBtn").hidden = false;
+  try {
+    const p = await call("piece", { id });
+    if (S.view !== "read") return;
+    S.piece = p; renderPiece(p);
+    const y = opts.hl ? null : parseFloat(lsGet("vd.pos." + id) || "0");
+    requestAnimationFrame(() => {
+      if (opts.hl) {
+        const m = $(`#body mark.hl[data-h="${opts.hl}"]`);
+        if (m) { m.scrollIntoView({ block: "center" }); $$(`#body mark.hl[data-h="${opts.hl}"]`).forEach((x) => x.classList.add("flash")); }
+      } else if (y > 0.02 && y < 0.97) {
+        window.scrollTo(0, y * (document.documentElement.scrollHeight - innerHeight));
+        toast("Picked up where you left off");
+      }
+      setProgress();
+    });
+  } catch (e) {
+    $("#body").innerHTML = `<div class="empty"><b>Couldn't open this piece</b>${esc(e.message)}</div>`;
+  }
+}
+function renderPiece(p) {
+  const brief = p.type === "morning_brief";
+  $("#rKick").textContent = brief ? "Morning Brief" : "Deep Dive · " + p.topic;
+  $("#rTitle").textContent = p.title;
+  $("#rTitleMini").textContent = p.title;
+  $("#rMeta").textContent = `${p.date} · ${p.mins} min read`;
+  const body = $("#body"); body.innerHTML = "";
+  S.btext = []; S.sents = []; S.sel = null;
+  let mode = "";
+  p.blocks.forEach((b, i) => {
+    let el;
+    if (b.k === "hr") { el = document.createElement("div"); el.className = "sep"; el.textContent = "· · ·"; mode = ""; }
+    else if (b.k === "h") {
+      el = document.createElement("h2"); el.textContent = b.t;
+      mode = /^🎯|founder.s challenge/i.test(b.t) ? "challenge" : /^sources$/i.test(b.t.trim()) ? "sources" : "";
+      if (mode) el.className = mode;
+    } else { el = document.createElement("p"); el.innerHTML = b.h; if (mode) el.className = mode; }
+    el.dataset.b = i; body.appendChild(el);
+    S.btext[i] = b.k === "hr" ? "" : el.textContent;
+  });
+  $$("#body a").forEach((a) => { a.rel = "noopener"; a.target = "_blank"; });
+  $$("#body [data-b]").forEach((el) => {
+    if (el.classList.contains("sep")) return;
+    const b = +el.dataset.b;
+    for (const [s, e] of segment(S.btext[b])) {
+      const id = S.sents.length; S.sents.push({ b, s, e });
+      markRange(el, s, e, () => { const sp = document.createElement("span"); sp.className = "s"; sp.dataset.s = id; return sp; });
+    }
+  });
+  p.highlights.forEach(drawHl);
+  $("#tip").hidden = p.highlights.length > 0 || !!lsGet("vd.tipSeen");
+  renderEnd();
+  $("#end").hidden = false;
+}
+function renderEnd() {
+  const p = S.piece;
+  const rb = $("#readBtn");
+  rb.className = "btn " + (p.read ? "done" : "primary");
+  rb.innerHTML = p.read ? "✓ Read — tap to undo" : "Mark as read";
+  $$("#rates button").forEach((b) => b.classList.toggle("on", b.dataset.r === p.rating));
+  const np = $("#notePrev");
+  np.hidden = !p.note; np.textContent = p.note ? "Sent: " + p.note.split(" | ").slice(-1)[0] : "";
+}
+function syncItem(p) {
+  const it = (S.items || []).find((x) => x.id === p.id);
+  if (it) { it.read = p.read; it.rating = p.rating; it.hl = p.highlights.length; }
+}
+function backToLibrary() {
+  if (S.view !== "read") return;
+  savePos(); closeSheets(true);
+  if (S.piece) syncItem(S.piece);
+  S.view = "lib"; S.piece = null;
+  $("#vRead").hidden = true; $("#prog").hidden = true; $("#vLib").hidden = false; $("#backBtn").hidden = true;
+  if (ver("6.1")) tg.BackButton.hide();
+  if (S.tab === "hl") renderHighlights(); else renderList();
+  if (!S.items) loadList();
+  requestAnimationFrame(() => window.scrollTo(0, S.libY));
+}
+$("#backBtn").addEventListener("click", backToLibrary);
+$("#toLib").addEventListener("click", backToLibrary);
+if (tg && ver("6.1")) tg.BackButton.onClick(backToLibrary);
+
+// progress + reading position
+function ratio() { const h = document.documentElement.scrollHeight - innerHeight; return h > 0 ? Math.min(1, Math.max(0, scrollY / h)) : 0; }
+function setProgress() { $("#prog i").style.width = (S.view === "read" ? ratio() * 100 : 0) + "%"; $("#rbar").classList.toggle("lined", scrollY > 120); }
+function savePos() { if (S.piece) lsSet("vd.pos." + S.piece.id, ratio().toFixed(4)); }
+let posT;
+addEventListener("scroll", () => {
+  if (S.view !== "read") return;
+  setProgress(); clearTimeout(posT); posT = setTimeout(savePos, 400);
+}, { passive: true });
+
+// ---------- highlighting ----------
+function clearPending() {
+  $$("#body .s.pend").forEach((s) => s.classList.remove("pend"));
+  S.sel = null;
+}
+function sentText(i, j) { const out = []; for (let k = i; k <= j; k++) { const s = S.sents[k]; out.push(S.btext[s.b].slice(s.s, s.e)); } return out.join(" "); }
+function selectSentences(i, j) {
+  $$("#body .s.pend").forEach((s) => s.classList.remove("pend"));
+  for (let k = i; k <= j; k++) $$(`#body .s[data-s="${k}"]`).forEach((x) => x.classList.add("pend"));
+  S.sel = { mode: "sent", i, j };
+  showSelSheet(sentText(i, j), j + 1 < S.sents.length);
+  keepVisible($$(`#body .s[data-s="${j}"]`).pop());
+  haptic();
+}
+// keep the selected text above the bottom sheet
+function keepVisible(el) {
+  if (!el) return;
+  const r = el.getBoundingClientRect(), limit = innerHeight - 210;
+  if (r.bottom > limit) window.scrollBy({ top: r.bottom - limit, behavior: "smooth" });
+}
+function showSelSheet(quote, canExtend) {
+  $("#sq").textContent = quote;
+  $("#sacts").innerHTML =
+    `<button class="x" data-a="cancel" aria-label="Cancel">✕</button>` +
+    (canExtend ? `<button data-a="extend">＋ Next</button>` : "") +
+    `<button class="primary" data-a="save">✨ Save</button>`;
+  if (S.sheet !== "selSheet") openSheet("selSheet", true);
+}
+function showHlSheet(hid) {
+  clearPending();
+  const h = S.piece.highlights.find((x) => String(x.id) === String(hid)); if (!h) return;
+  S.sel = { mode: "existing", hid: h.id };
+  $("#sq").textContent = h.quote;
+  $("#sacts").innerHTML = `<button class="x" data-a="cancel" aria-label="Close">✕</button><button data-a="copy">Copy</button><button data-a="remove">Remove</button>`;
+  openSheet("selSheet", true);
+  keepVisible($$(`#body mark.hl[data-h="${h.id}"]`).pop());
+}
+$("#sacts").addEventListener("click", async (e) => {
+  const a = e.target.closest("button")?.dataset.a; if (!a) return;
+  const sel = S.sel;
+  if (a === "cancel") { closeSheets(); try { getSelection().removeAllRanges(); } catch {} return; }
+  if (a === "extend" && sel?.mode === "sent") { selectSentences(sel.i, Math.min(sel.j + 1, S.sents.length - 1)); return; }
+  if (a === "save") { saveSelection(); return; }
+  if (a === "copy" && sel?.mode === "existing") { const h = S.piece.highlights.find((x) => x.id === sel.hid); (await copyText(h.quote)) ? toast("Copied") : toast("Couldn't copy"); closeSheets(); return; }
+  if (a === "remove" && sel?.mode === "existing") { closeSheets(); await deleteHl(sel.hid, S.piece.id); }
+});
+async function saveSelection() {
+  const sel = S.sel, p = S.piece; if (!sel || !p) return;
+  let pos, quote;
+  if (sel.mode === "sent") { const a = S.sents[sel.i], z = S.sents[sel.j]; pos = { b1: a.b, o1: a.s, b2: z.b, o2: z.e }; quote = sentText(sel.i, sel.j); }
+  else if (sel.mode === "range") { pos = { b1: sel.b1, o1: sel.o1, b2: sel.b2, o2: sel.o2 }; quote = sel.quote; }
+  else return;
+  closeSheets(); try { getSelection().removeAllRanges(); } catch {}
+  const tmpId = "t" + Date.now();
+  const tmp = Object.assign({ id: tmpId, quote }, pos);
+  drawHl(tmp); p.highlights.push(tmp);
+  haptic("success"); toast("Saved to Highlights ✨");
+  lsSet("vd.tipSeen", "1"); $("#tip").hidden = true;
+  try {
+    const { highlight } = await call("hl_add", Object.assign({ id: p.id, quote }, pos));
+    $$(`#body mark.hl[data-h="${tmpId}"]`).forEach((m) => (m.dataset.h = highlight.id));
+    tmp.id = highlight.id; S.hls = null;
+  } catch (e) {
+    unmark(tmpId); p.highlights = p.highlights.filter((x) => x !== tmp);
+    toast("Couldn't save — try again");
+  }
+}
+$("#body").addEventListener("click", (e) => {
+  const a = e.target.closest("a");
+  if (a) { e.preventDefault(); openExternal(a.href); return; }
+  const gs = getSelection(); if (gs && !gs.isCollapsed) return;
+  const m = e.target.closest("mark.hl");
+  if (m) { showHlSheet(m.dataset.h); haptic(); return; }
+  const s = e.target.closest(".s");
+  if (s) {
+    const id = +s.dataset.s;
+    if (S.sel && S.sel.mode === "sent" && id >= S.sel.i && id <= S.sel.j) { closeSheets(); return; }
+    if (S.sel && S.sel.mode === "sent" && id === S.sel.j + 1) { selectSentences(S.sel.i, id); return; }
+    selectSentences(id, id); return;
+  }
+  if (S.sheet) closeSheets();
+});
+// press-and-drag selection
+function blockOf(node) { const el = node.nodeType === 1 ? node : node.parentElement; return el && el.closest("#body [data-b]"); }
+function offsetIn(blk, node, off) { const r = document.createRange(); r.setStart(blk, 0); r.setEnd(node, off); return r.toString().length; }
+let selT;
+document.addEventListener("selectionchange", () => {
+  clearTimeout(selT);
+  selT = setTimeout(() => {
+    if (S.view !== "read" || !S.piece) return;
+    const gs = getSelection();
+    if (!gs || gs.isCollapsed || !gs.rangeCount) { if (S.sel && S.sel.mode === "range") closeSheets(); return; }
+    const r = gs.getRangeAt(0);
+    if (!$("#body").contains(r.commonAncestorContainer)) return;
+    const sb = blockOf(r.startContainer), eb = blockOf(r.endContainer);
+    if (!sb || !eb) return;
+    const quote = r.toString().replace(/\s+/g, " ").trim();
+    if (quote.length < 3) return;
+    $$("#body .s.pend").forEach((s) => s.classList.remove("pend"));
+    S.sel = { mode: "range", quote, b1: +sb.dataset.b, o1: offsetIn(sb, r.startContainer, r.startOffset), b2: +eb.dataset.b, o2: offsetIn(eb, r.endContainer, r.endOffset) };
+    showSelSheet(quote, false);
+  }, 160);
+});
+
+// ---------- end-of-piece actions ----------
+$("#readBtn").addEventListener("click", async () => {
+  const p = S.piece; if (!p) return;
+  p.read = !p.read; renderEnd(); syncItem(p);
+  if (p.read) { haptic("success"); toast("Nice — logged as read ✓"); }
+  try { await call("read", { id: p.id, read: p.read }); } catch (e) { p.read = !p.read; renderEnd(); toast("Couldn't save: " + e.message); }
+});
+$("#rates").addEventListener("click", async (e) => {
+  const b = e.target.closest("button"); const p = S.piece; if (!b || !p) return;
+  const prev = { rating: p.rating, read: p.read };
+  p.rating = p.rating === b.dataset.r ? null : b.dataset.r;
+  if (p.rating) p.read = true;
+  renderEnd(); syncItem(p); haptic();
+  if (p.rating) toast("Thanks — VentureDesk is learning");
+  try { await call("rate", { id: p.id, rating: p.rating }); } catch (err) { Object.assign(p, prev); renderEnd(); toast("Couldn't save: " + err.message); }
+});
+const noteIn = $("#noteIn");
+noteIn.addEventListener("input", () => { noteIn.style.height = "auto"; noteIn.style.height = Math.min(140, noteIn.scrollHeight) + "px"; });
+$("#noteSend").addEventListener("click", async () => {
+  const p = S.piece, text = noteIn.value.trim(); if (!p || !text) return;
+  $("#noteSend").disabled = true;
+  try {
+    await call("note", { id: p.id, text });
+    p.note = p.note ? p.note + " | " + text : text; p.read = true; renderEnd(); syncItem(p);
+    noteIn.value = ""; noteIn.style.height = ""; noteIn.blur(); haptic("success"); toast("Noted — thanks");
+  } catch (e) { toast("Couldn't send: " + e.message); }
+  $("#noteSend").disabled = false;
+});
+$("#pdfBtn").addEventListener("click", async () => {
+  const p = S.piece; if (!p) return;
+  toast("Building PDF…");
+  try { await call("pdf", { id: p.id }); toast("PDF sent to your chat 📄"); haptic("success"); }
+  catch (e) { toast("Couldn't send: " + e.message); }
+});
+
+// ---------- text settings ----------
+$("#aaBtn").addEventListener("click", () => { clearPending(); openSheet("aaSheet", false); });
+function setFs(v) { SET.fs = Math.max(15, Math.min(27, v)); const r = ratio(); applySettings(); saveSettings(); window.scrollTo(0, r * (document.documentElement.scrollHeight - innerHeight)); }
+$("#fsR").addEventListener("input", (e) => setFs(+e.target.value));
+$("#fsDn").addEventListener("click", () => { setFs(SET.fs - 1); haptic(); });
+$("#fsUp").addEventListener("click", () => { setFs(SET.fs + 1); haptic(); });
+$("#fontOpt").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; SET.font = b.dataset.v; applySettings(); saveSettings(); haptic(); });
+$("#themeOpt").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; SET.theme = b.dataset.v; applySettings(); saveSettings(); haptic(); });
+
+// ---------- boot ----------
+function fatal(e) {
+  const msg = !tg || !tg.initData
+    ? `<b>Open VentureDesk from Telegram</b>This reader only works inside your VentureDesk chat — tap 📚 Library there.`
+    : e && e.status === 403 ? `<b>Not authorized</b>This library belongs to someone else.`
+    : `<b>Couldn't load</b>${esc(e && e.message)}<br><br><button class="btn ghost" onclick="location.reload()">Try again</button>`;
+  $("#list").innerHTML = `<div class="empty">${msg}</div>`;
+}
+function boot() {
+  if (tg) {
+    try { tg.ready(); tg.expand(); } catch {}
+    try { if (ver("7.7")) tg.disableVerticalSwipes(); } catch {}
+    try { tg.onEvent("themeChanged", () => SET.theme === "auto" && applySettings()); } catch {}
+    try {
+      if (ver("6.9")) tg.CloudStorage.getItem("settings", (err, v) => {
+        if (!err && v) { try { Object.assign(SET, JSON.parse(v)); lsSet("vd.settings", JSON.stringify(SET)); applySettings(); } catch {} }
+      });
+    } catch {}
+  }
+  applySettings();
+  if (!tg || !tg.initData) { fatal(); return; }
+  const pid = +new URLSearchParams(location.search).get("p");
+  loadList();
+  if (pid) openPiece(pid);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) loadList(true); else savePos(); });
+}
+boot();
+})();
+</script>
+</body>
+</html>
