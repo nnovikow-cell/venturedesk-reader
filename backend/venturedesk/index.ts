@@ -58,7 +58,7 @@ RESEARCH: Before writing, use web search (at most 3 searches) to verify the spec
 
 Write a thorough, intellectually demanding exploration of 2,000–2,800 words. Hitting that length is required: do not stop early. Cover: the core frameworks and mental models; real examples from named startups and what they actually did; the most common mistakes founders make here; and what separates good from great execution. Where relevant, connect points to a B2C/B2B career-management SaaS like VitaeCu. Do not simplify. Challenge the reader's assumptions.
 
-End with a section titled "Founder's Challenge": one specific question or exercise to work through before tomorrow. After it, add one last section titled "Sources": one line per source, formatted "• <a href="URL">Publication — article title</a>" for web pages you actually retrieved, and "• Author, <i>Book Title</i>" for any books you drew on. Only list sources you actually used. Never invent or guess a URL.
+End with a section titled "Founder's Challenge": 2–5 numbered questions (each on its own line, formatted "1. …"), each specific to VitaeCu and answerable in a few sentences of writing before tomorrow. The reader answers these in writing inside his reading app. After it, add one last section titled "Sources": one line per source, formatted "• <a href="URL">Publication — article title</a>" for web pages you actually retrieved, and "• Author, <i>Book Title</i>" for any books you drew on. Only list sources you actually used. Never invent or guess a URL.
 
 OUTPUT FORMAT (strict): The very first line must be "TITLE: " followed by a sharp, specific article title (max 10 words, not just the topic name). Then a blank line, then the piece.
 
@@ -279,7 +279,9 @@ async function learningContext(cfg: Any) {
   });
   const { data: hl } = await sb.from("highlights").select("quote,message_log(title)").order("created_at", { ascending: false }).limit(8);
   const hls = (hl ?? []).map((h: Any) => `- "${String(h.quote).slice(0, 280)}" (from "${h.message_log?.title ?? "?"}")`);
-  return `\n\nREADER PROFILE (learned from the readers' ratings — adapt topic selection, emphasis, depth, and examples to it, without breaking any rule above):\n${cfg.style_profile}${lines.length ? `\n\nRecent reactions:\n${lines.join("\n")}` : ""}${hls.length ? `\n\nPassages he saved as highlights (the strongest signal of what resonates — don't repeat them, but write more ideas of this caliber and kind):\n${hls.join("\n")}` : ""}`;
+  const { data: ans } = await sb.from("challenge_answers").select("question,answer,message_log(title)").order("updated_at", { ascending: false }).limit(6);
+  const anss = (ans ?? []).map((a: Any) => `- On "${a.message_log?.title ?? "?"}" — Q: "${String(a.question).slice(0, 160)}" → his answer: "${String(a.answer).slice(0, 400)}"`);
+  return `\n\nREADER PROFILE (learned from the readers' ratings — adapt topic selection, emphasis, depth, and examples to it, without breaking any rule above):\n${cfg.style_profile}${lines.length ? `\n\nRecent reactions:\n${lines.join("\n")}` : ""}${hls.length ? `\n\nPassages he saved as highlights (the strongest signal of what resonates — don't repeat them, but write more ideas of this caliber and kind):\n${hls.join("\n")}` : ""}${anss.length ? `\n\nHis written answers to recent Founder's Challenges (build on his actual decisions, numbers, and plans where relevant and reference them explicitly; push back where his answer has a gap; don't re-ask what he has already answered):\n${anss.join("\n")}` : ""}`;
 }
 
 async function updateProfile(cfg: Any, job: Any, who: string, rating: string | null, feedback: string | null, highlight?: string) {
@@ -354,6 +356,7 @@ async function process(cfg: Any, job: Any) {
     }
 
     await sb.from("message_log").update({ status: "sent", sent_at: new Date().toISOString(), error: null }).eq("id", job.id);
+    if (type === "evening_deep_dive" && !job.challenge) EdgeRuntime.waitUntil(extractChallenge(job).catch((e) => console.error("challenge", e)));
     if (type === "evening_deep_dive" && !job.custom_topic && job.topic_index !== null) {
       await sb.from("config").update({ topic_index: (job.topic_index + 1) % CURRICULUM.length, updated_at: new Date().toISOString() })
         .eq("id", 1).eq("topic_index", job.topic_index);
@@ -435,6 +438,87 @@ async function tick() {
   }
 }
 
+// ---------- Founder's Challenge (homework) ----------
+
+function challengeText(content: string) {
+  const blocks = readerBlocks(content);
+  const i = blocks.findIndex((b) => b.k === "h" && /founder.?s challenge/i.test(b.t ?? ""));
+  if (i === -1) return null;
+  const out: string[] = [];
+  for (let j = i + 1; j < blocks.length && blocks[j].k === "p"; j++) out.push(stripTags(blocks[j].h ?? ""));
+  return out.join("\n\n").trim() || null;
+}
+
+function fallbackQuestions(raw: string) {
+  const parts = raw.split(/\n(?=\s*\d{1,2}[.)]\s)/).map((s) => s.trim()).filter(Boolean);
+  const numbered = parts.filter((s) => /^\d{1,2}[.)]\s/.test(s));
+  if (numbered.length >= 2) {
+    const intro = parts[0] && !/^\d{1,2}[.)]\s/.test(parts[0]) ? parts[0] : null;
+    return { intro, questions: numbered.map((s) => s.replace(/^\d{1,2}[.)]\s+/, "").trim()) };
+  }
+  return { intro: null, questions: [raw] };
+}
+
+/** Turns a deep dive's free-form challenge into a clean question list, once, and stores it on the piece. */
+async function extractChallenge(job: Any) {
+  if (job.type !== "evening_deep_dive") return { intro: null, questions: [] };
+  const raw = challengeText(job.content ?? "");
+  let ch: Any = { intro: null, questions: [] };
+  if (raw) {
+    try {
+      const { text } = await claude({
+        model: CHEAP_MODEL, max_tokens: 1500,
+        system: `You turn the "Founder's Challenge" homework at the end of an article into a list of questions the reader will answer in writing, one text box per question. Return ONLY JSON: {"intro": string|null, "questions": string[]}. Rules: keep the author's wording; every question must stand on its own and be answerable in writing (rephrase an instruction like "List your inputs" into a clear prompt only if needed); fold sub-points that belong to one step into that question; 1–7 questions; "intro" is a short framing sentence from the text if there is one, else null. No markdown.`,
+        user: raw,
+      });
+      const j = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
+      const qs = (Array.isArray(j.questions) ? j.questions : []).map((q: Any) => String(q).trim()).filter(Boolean).slice(0, 7);
+      ch = qs.length ? { intro: j.intro ? String(j.intro).trim() : null, questions: qs } : fallbackQuestions(raw);
+    } catch (e) {
+      console.error("extractChallenge", e);
+      ch = fallbackQuestions(raw);
+    }
+  }
+  await sb.from("message_log").update({ challenge: ch }).eq("id", job.id);
+  return ch;
+}
+
+async function backfillChallenges(limit = 30) {
+  const { data } = await sb.from("message_log").select("id,type,content").eq("type", "evening_deep_dive").eq("status", "sent").is("challenge", null).limit(limit);
+  let n = 0;
+  for (const j of data ?? []) { await extractChallenge(j); n++; }
+  return n;
+}
+
+async function answeredCounts(uid: number, ids?: number[]) {
+  let q = sb.from("challenge_answers").select("message_id").eq("user_id", uid);
+  if (ids) q = q.in("message_id", ids);
+  const { data } = await q;
+  const m = new Map<number, number>();
+  for (const r of data ?? []) m.set(r.message_id, (m.get(r.message_id) ?? 0) + 1);
+  return m;
+}
+
+async function homeworkMarkdown(cfg: Any, uid: number, onlyId?: number) {
+  let q = sb.from("challenge_answers").select("message_id,q_index,answer").eq("user_id", uid);
+  if (onlyId) q = q.eq("message_id", onlyId);
+  const { data: ans } = await q;
+  if (!ans?.length) return null;
+  const ids = [...new Set(ans.map((a: Any) => a.message_id))];
+  const { data: jobs } = await sb.from("message_log").select("id,type,title,custom_topic,topic_index,headline,sent_at,created_at,challenge").in("id", ids).order("sent_at", { ascending: false });
+  const today = new Intl.DateTimeFormat("en-US", { timeZone: cfg.timezone, month: "long", day: "numeric", year: "numeric" }).format(new Date());
+  let md = `# VentureDesk — Founder's Challenges\n\nExported ${today} · ${ans.length} answer${ans.length === 1 ? "" : "s"} across ${ids.length} challenge${ids.length === 1 ? "" : "s"}\n`;
+  for (const j of jobs ?? []) {
+    const d = docOf(cfg, j);
+    const qs: string[] = j.challenge?.questions ?? [];
+    const mine = new Map(ans.filter((a: Any) => a.message_id === j.id).map((a: Any) => [a.q_index, a.answer]));
+    md += `\n---\n\n## ${d.title}\n\n*${d.kind} · ${d.topic} · ${d.date}*\n`;
+    if (j.challenge?.intro) md += `\n${j.challenge.intro}\n`;
+    qs.forEach((qq, i) => { md += `\n**${i + 1}. ${qq}**\n\n${mine.get(i) ?? "_Not answered yet._"}\n`; });
+  }
+  return { md, title: jobs?.length === 1 ? docOf(cfg, jobs[0]).title : null };
+}
+
 // ---------- Mini App API ----------
 
 /** Reader blocks; a brief's leading "Morning Brief: <date>" line duplicates the title, so it's dropped (always, so highlight offsets stay stable). */
@@ -488,8 +572,10 @@ async function api(req: Request, route: string) {
   switch (route) {
     case "list": {
       const { data: pcs } = await sb.from("message_log")
-        .select("id,type,title,headline,custom_topic,topic_index,local_date,sent_at,created_at,words")
+        .select("id,type,title,headline,custom_topic,topic_index,local_date,sent_at,created_at,words,challenge")
         .eq("status", "sent").order("sent_at", { ascending: false }).limit(200);
+      const acount = await answeredCounts(uid);
+      if ((pcs ?? []).some((j: Any) => j.type === "evening_deep_dive" && j.challenge == null)) EdgeRuntime.waitUntil(backfillChallenges(5).catch((e) => console.error(e)));
       const { data: rx } = await sb.from("reactions").select("message_id,stars,read_at").eq("user_id", uid);
       const { data: hl } = await sb.from("highlights").select("message_id").eq("user_id", uid);
       const rmap = new Map((rx ?? []).map((r: Any) => [r.message_id, r]));
@@ -501,6 +587,7 @@ async function api(req: Request, route: string) {
           id: j.id, type: j.type, title: docOf(cfg, j).title, topic: topicOf(j), date: j.local_date, sent_at: j.sent_at,
           mins: readMins(j.words), read: !!r?.read_at, stars: r?.stars ?? null, hl: hcount.get(j.id) ?? 0,
           stories: j.type === "morning_brief" ? storiesOf(j.headline) : [],
+          hw: j.challenge?.questions?.length ? { t: j.challenge.questions.length, a: Math.min(acount.get(j.id) ?? 0, j.challenge.questions.length) } : null,
         };
       });
       return json({ items, name: uname });
@@ -511,8 +598,10 @@ async function api(req: Request, route: string) {
       const r = await myRx(job.id);
       const { data: hl } = await sb.from("highlights").select("id,quote,b1,o1,b2,o2").eq("message_id", job.id).eq("user_id", uid).order("id");
       const d = docOf(cfg, job);
+      const qn = job.challenge?.questions?.length ?? 0;
+      const hw = qn ? { t: qn, a: Math.min((await answeredCounts(uid, [job.id])).get(job.id) ?? 0, qn) } : (job.type === "evening_deep_dive" && job.challenge == null && challengeText(job.content ?? "") ? { t: 0, a: 0 } : null);
       return json({
-        id: job.id, type: job.type, title: d.title, topic: d.topic, date: d.date, mins: readMins(job.words ?? wordCount(job.content)),
+        hw, id: job.id, type: job.type, title: d.title, topic: d.topic, date: d.date, mins: readMins(job.words ?? wordCount(job.content)),
         blocks: pieceBlocks(job), read: !!r?.read_at, stars: r?.stars ?? null, note: r?.feedback ?? null, highlights: hl ?? [],
       });
     }
@@ -542,6 +631,35 @@ async function api(req: Request, route: string) {
       const r = await myRx(job.id);
       await upsertRx(job.id, { feedback: r?.feedback ? `${r.feedback} | ${text}` : text, read_at: r?.read_at ?? nowIso });
       EdgeRuntime.waitUntil(updateProfile(cfg, job, uname, r?.stars ? starsTxt(r.stars) : null, text).catch((e) => console.error(e)));
+      return json({ ok: true });
+    }
+    case "challenge": {
+      const job = await getJob(Number(body.id));
+      if (!job || job.type !== "evening_deep_dive") return json({ error: "not found" }, 404);
+      const ch = job.challenge ?? await extractChallenge(job);
+      const { data: ans } = await sb.from("challenge_answers").select("q_index,answer,updated_at").eq("message_id", job.id).eq("user_id", uid);
+      const d = docOf(cfg, job);
+      return json({ id: job.id, title: d.title, topic: d.topic, date: d.date, intro: ch.intro ?? null, questions: ch.questions ?? [], answers: ans ?? [] });
+    }
+    case "answer": {
+      const job = await getJob(Number(body.id));
+      const qs: string[] = job?.challenge?.questions ?? [];
+      const qi = Math.floor(Number(body.q));
+      if (!job || !(qi >= 0 && qi < qs.length)) return json({ error: "bad request" }, 400);
+      const text = String(body.text ?? "").replace(/\s+$/, "").slice(0, 8000);
+      if (!text.trim()) await sb.from("challenge_answers").delete().eq("message_id", job.id).eq("user_id", uid).eq("q_index", qi);
+      else {
+        const { error } = await sb.from("challenge_answers").upsert({ message_id: job.id, user_id: uid, q_index: qi, question: qs[qi], answer: text, updated_at: nowIso }, { onConflict: "message_id,user_id,q_index" });
+        if (error) throw error;
+      }
+      const a = (await answeredCounts(uid, [job.id])).get(job.id) ?? 0;
+      return json({ ok: true, a: Math.min(a, qs.length), t: qs.length, saved_at: nowIso });
+    }
+    case "hw_export": {
+      const r = await homeworkMarkdown(cfg, uid, body.id ? Number(body.id) : undefined);
+      if (!r) return json({ error: "no answers yet" }, 400);
+      const name = r.title ? `VentureDesk_Challenge_${fileSlug(r.title)}.md` : `VentureDesk_Founders_Challenges_${localNow(cfg.timezone).date}.md`;
+      await sendFile(uid, r.md, name, "text/markdown", r.title ? `✍️ ${r.title}` : "✍️ Your Founder's Challenge answers");
       return json({ ok: true });
     }
     case "hl_add": {
@@ -801,6 +919,7 @@ Deno.serve(async (req) => {
     if (req.headers.get("x-cron-secret") !== cfg.cron_secret) return new Response("forbidden", { status: 403 });
     const body = await req.json().catch(() => ({}));
     if (body.action === "register") return Response.json(await register(cfg));
+    if (body.action === "backfill_challenges") return Response.json({ extracted: await backfillChallenges(50) });
     if (body.action === "run" && (body.type === "morning_brief" || body.type === "evening_deep_dive")) {
       EdgeRuntime.waitUntil(runScheduled(body.type, !!body.force).catch((e) => console.error("run", e)));
       return Response.json({ started: body.type });
