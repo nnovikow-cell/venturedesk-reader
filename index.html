@@ -13,13 +13,14 @@
 :root{
   --bg:#FAF8F3; --fg:#1D1C1A; --muted:#77736B; --line:#E8E3D9; --card:#FFFFFF;
   --accent:#2F5D8A; --on-accent:#FFFFFF; --hl:rgba(255,206,74,.55); --pend:rgba(47,93,138,.14);
+  --star:#E5A00D; --star-off:rgba(128,128,128,.28);
   --fs:19px; --serif:'Literata',Georgia,'Times New Roman',serif;
   --sans:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,'Helvetica Neue',sans-serif;
   --read:var(--serif);
   --safe-b:max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px));
 }
 html[data-theme="sepia"]{--bg:#F4ECDA;--fg:#3A2E1F;--muted:#85745B;--line:#E2D5BA;--card:#F9F2E3;--accent:#7A4E22;--hl:rgba(218,160,40,.40);--pend:rgba(122,78,34,.14)}
-html[data-theme="night"]{--bg:#121316;--fg:#E4E1DA;--muted:#8D8A84;--line:#2A2C31;--card:#1B1D21;--accent:#8FB4E3;--on-accent:#101215;--hl:rgba(240,190,70,.30);--pend:rgba(143,180,227,.18)}
+html[data-theme="night"]{--bg:#121316;--fg:#E4E1DA;--muted:#8D8A84;--line:#2A2C31;--card:#1B1D21;--accent:#8FB4E3;--on-accent:#101215;--hl:rgba(240,190,70,.30);--pend:rgba(143,180,227,.18);--star:#F2B53A}
 html[data-font="sans"]{--read:var(--sans)}
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -107,10 +108,21 @@ mark.hl.flash{animation:flash 1.4s ease}
 .btn.done{background:transparent;border:1.5px solid var(--accent);color:var(--accent)}
 .btn.ghost{border:1px solid var(--line);font-size:15px;height:46px}
 .lbl{font:600 11.5px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:26px 0 10px}
-.rates{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.rates button{padding:11px 4px;border-radius:12px;border:1px solid var(--line);font-size:13.5px;font-weight:550;display:flex;flex-direction:column;align-items:center;gap:4px}
-.rates button span{font-size:21px;line-height:1}
-.rates button.on{border-color:var(--accent);background:var(--pend);color:var(--fg)}
+.stars{display:flex;justify-content:center;gap:4px}
+.stars button{font-size:40px;line-height:1;padding:2px 5px;color:var(--star-off);transition:transform .12s ease,color .12s ease}
+.stars button.on{color:var(--star)}
+.stars button:active{transform:scale(1.2)}
+.starlbl{text-align:center;font-size:13.5px;color:var(--muted);margin-top:6px;min-height:18px}
+.meta .st{color:var(--star);letter-spacing:1px}
+.meta .st i{font-style:normal;color:var(--star-off)}
+.chip.topic{display:flex;align-items:center;gap:5px}
+.chip.topic.on{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.tlist{max-height:62vh;overflow-y:auto;margin:0 -4px;-webkit-overflow-scrolling:touch}
+.tlist button{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 4px;border-bottom:1px solid var(--line);font-size:15.5px}
+.tlist button:last-child{border-bottom:0}
+.tlist button span{color:var(--muted);font-size:13px;flex:none}
+.tlist button.on{color:var(--accent);font-weight:600}
+.tlist .th{font:600 11px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:4px 4px 8px}
 .note{display:flex;gap:8px;align-items:flex-end}
 .note textarea{flex:1;min-height:46px;max-height:140px;resize:none;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--fg);font:15px/1.4 var(--sans);padding:12px 13px}
 .note textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
@@ -160,10 +172,12 @@ mark.hl.flash{animation:flash 1.4s ease}
     <div class="brand"><b>VentureDesk</b><span id="unread"></span></div>
     <nav class="seg"><button data-tab="lib" class="on">Library</button><button data-tab="hl">Highlights</button></nav>
     <div class="chips" id="chips">
+      <button class="chip topic" id="topicChip">Topic <span aria-hidden="true">▾</span></button>
       <button class="chip on" data-f="all">All</button>
       <button class="chip" data-f="unread">Unread</button>
       <button class="chip" data-f="dive">Deep dives</button>
       <button class="chip" data-f="brief">Briefs</button>
+      <button class="chip" data-f="top">★ 4+</button>
       <button class="chip" data-f="saved">With highlights</button>
     </div>
   </div></header>
@@ -194,11 +208,10 @@ mark.hl.flash{animation:flash 1.4s ease}
     <section class="end" id="end">
       <button class="btn primary" id="readBtn"></button>
       <div class="lbl">How was it?</div>
-      <div class="rates" id="rates">
-        <button data-r="useful"><span>💡</span>Useful</button>
-        <button data-r="interesting"><span>🤔</span>Interesting</button>
-        <button data-r="not_much"><span>😐</span>Not so much</button>
+      <div class="stars" id="stars" role="radiogroup" aria-label="Rating">
+        <button data-s="1" aria-label="1 star">★</button><button data-s="2" aria-label="2 stars">★</button><button data-s="3" aria-label="3 stars">★</button><button data-s="4" aria-label="4 stars">★</button><button data-s="5" aria-label="5 stars">★</button>
       </div>
+      <div class="starlbl" id="starLbl"></div>
       <div class="lbl">Note for VentureDesk</div>
       <div class="note"><textarea id="noteIn" rows="1" placeholder="More of this, less of that…"></textarea><button id="noteSend">Send</button></div>
       <div class="prev" id="notePrev" hidden></div>
@@ -228,6 +241,10 @@ mark.hl.flash{animation:flash 1.4s ease}
       <button class="sw" data-v="night"><i style="background:#121316;color:#E4E1DA">Aa</i>Night</button>
     </div>
   </div>
+</div>
+<div class="sheet" id="topicSheet" role="dialog" aria-label="Filter by topic">
+  <div class="grab"></div>
+  <div class="tlist" id="tlist"></div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -320,7 +337,9 @@ function dayLabel(iso) {
   if (iso === isoDay(y)) return "Yesterday · " + long;
   return long + (d.getFullYear() !== today.getFullYear() ? ", " + d.getFullYear() : "");
 }
-const RLAB = { useful: "💡", interesting: "🤔", not_much: "😐" };
+const STAR_LBL = ["Tap to rate", "Not for me", "Meh", "Solid", "Really good", "Excellent — more like this"];
+const starStr = (n) => `<span class="st" aria-label="${n} of 5 stars">${"★".repeat(n)}<i>${"★".repeat(5 - n)}</i></span>`;
+const topicKey = (x) => (x.type === "morning_brief" ? "Morning Briefs" : x.topic || "Deep dive");
 
 // ---------- sheets ----------
 function openSheet(id, scrimClear) {
@@ -338,13 +357,40 @@ $("#scrim").addEventListener("click", () => { closeSheets(); try { getSelection(
 
 // ---------- library ----------
 function filtered() {
-  const f = S.filter, it = S.items || [];
+  const f = S.filter;
+  let it = S.items || [];
+  if (S.topic) it = it.filter((x) => topicKey(x) === S.topic);
   if (f === "unread") return it.filter((x) => !x.read);
   if (f === "dive") return it.filter((x) => x.type === "evening_deep_dive");
   if (f === "brief") return it.filter((x) => x.type === "morning_brief");
+  if (f === "top") return it.filter((x) => (x.stars || 0) >= 4);
   if (f === "saved") return it.filter((x) => x.hl > 0);
   return it;
 }
+// ---------- topic filter ----------
+function renderTopicChip() {
+  const c = $("#topicChip");
+  c.classList.toggle("on", !!S.topic);
+  c.innerHTML = S.topic ? `${esc(S.topic)} <span aria-hidden="true">✕</span>` : `Topic <span aria-hidden="true">▾</span>`;
+}
+function openTopics() {
+  const counts = new Map();
+  for (const x of S.items || []) counts.set(topicKey(x), (counts.get(topicKey(x)) || 0) + 1);
+  const topics = [...counts.entries()].sort((a, b) => (a[0] === "Morning Briefs" ? -1 : b[0] === "Morning Briefs" ? 1 : b[1] - a[1] || a[0].localeCompare(b[0])));
+  $("#tlist").innerHTML = `<div class="th">Filter by topic</div>` +
+    `<button data-t="" class="${S.topic ? "" : "on"}">All topics<span>${(S.items || []).length}</span></button>` +
+    topics.map(([t, n]) => `<button data-t="${esc(t)}" class="${S.topic === t ? "on" : ""}">${esc(t)}<span>${n}</span></button>`).join("");
+  openSheet("topicSheet", false);
+}
+$("#topicChip").addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (S.topic && e.target.closest("span")) { S.topic = null; renderTopicChip(); renderList(); window.scrollTo(0, 0); haptic(); return; }
+  if (S.items) openTopics();
+});
+$("#tlist").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-t]"); if (!b) return;
+  S.topic = b.dataset.t || null; closeSheets(true); renderTopicChip(); renderList(); window.scrollTo(0, 0); haptic();
+});
 function renderUnread() {
   const n = (S.items || []).filter((x) => !x.read).length;
   $("#unread").textContent = S.items ? (n ? `${n} unread` : "All caught up") : "";
@@ -355,9 +401,9 @@ function renderList() {
   if (!S.items) return;
   const items = filtered();
   if (!items.length) {
-    list.innerHTML = S.filter === "all"
+    list.innerHTML = S.filter === "all" && !S.topic
       ? `<div class="empty"><b>Nothing here yet</b>Your briefs and deep dives will land here.</div>`
-      : `<div class="empty"><b>Nothing matches</b>${S.filter === "unread" ? "You're all caught up." : "Try another filter."}</div>`;
+      : `<div class="empty"><b>Nothing matches</b>${S.filter === "unread" && !S.topic ? "You're all caught up." : S.filter === "top" ? "Nothing rated 4★ or higher here yet." : "Try another filter."}</div>`;
     return;
   }
   let html = "", day = null;
@@ -366,7 +412,7 @@ function renderList() {
     const brief = x.type === "morning_brief";
     const kick = brief ? "Morning Brief" : "Deep Dive · " + x.topic;
     const stories = brief && x.stories.length ? `<ul class="stories">${x.stories.slice(0, 3).map((s) => `<li>${esc(s)}</li>`).join("")}</ul>` : "";
-    const meta = [`${x.mins} min`, x.hl ? `✨ ${x.hl}` : "", x.rating ? RLAB[x.rating] : "", x.read ? "✓ Read" : ""].filter(Boolean).map((m) => `<span>${m}</span>`).join("");
+    const meta = [`${x.mins} min`, x.hl ? `✨ ${x.hl}` : "", x.stars ? starStr(x.stars) : "", x.read ? "✓ Read" : ""].filter(Boolean).map((m) => `<span>${m}</span>`).join("");
     html += `<button class="item${x.read ? " read" : ""}" data-id="${x.id}">
       <div class="kick">${x.read ? "" : '<span class="dot"></span>'}${esc(kick)}</div>
       <h3>${esc(brief ? x.title.replace(/^Morning Brief\s*[—-]\s*/, "") || x.title : x.title)}</h3>${stories}
@@ -383,8 +429,8 @@ async function loadList(quiet) {
 }
 $("#list").addEventListener("click", (e) => { const b = e.target.closest(".item"); if (b) openPiece(+b.dataset.id); });
 $("#chips").addEventListener("click", (e) => {
-  const c = e.target.closest(".chip"); if (!c) return;
-  S.filter = c.dataset.f; $$("#chips .chip").forEach((x) => x.classList.toggle("on", x === c)); renderList(); window.scrollTo(0, 0); haptic();
+  const c = e.target.closest(".chip[data-f]"); if (!c) return;
+  S.filter = c.dataset.f; $$("#chips .chip[data-f]").forEach((x) => x.classList.toggle("on", x === c)); renderList(); window.scrollTo(0, 0); haptic();
 });
 $$(".seg button").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
 function setTab(t) {
@@ -563,13 +609,14 @@ function renderEnd() {
   const rb = $("#readBtn");
   rb.className = "btn " + (p.read ? "done" : "primary");
   rb.innerHTML = p.read ? "✓ Read — tap to undo" : "Mark as read";
-  $$("#rates button").forEach((b) => b.classList.toggle("on", b.dataset.r === p.rating));
+  $$("#stars button").forEach((b) => b.classList.toggle("on", +b.dataset.s <= (p.stars || 0)));
+  $("#starLbl").textContent = STAR_LBL[p.stars || 0];
   const np = $("#notePrev");
   np.hidden = !p.note; np.textContent = p.note ? "Sent: " + p.note.split(" | ").slice(-1)[0] : "";
 }
 function syncItem(p) {
   const it = (S.items || []).find((x) => x.id === p.id);
-  if (it) { it.read = p.read; it.rating = p.rating; it.hl = p.highlights.length; }
+  if (it) { it.read = p.read; it.stars = p.stars; it.hl = p.highlights.length; }
 }
 function backToLibrary() {
   if (S.view !== "read") return;
@@ -707,14 +754,14 @@ $("#readBtn").addEventListener("click", async () => {
   if (p.read) { haptic("success"); toast("Nice — logged as read ✓"); }
   try { await call("read", { id: p.id, read: p.read }); } catch (e) { p.read = !p.read; renderEnd(); toast("Couldn't save: " + e.message); }
 });
-$("#rates").addEventListener("click", async (e) => {
-  const b = e.target.closest("button"); const p = S.piece; if (!b || !p) return;
-  const prev = { rating: p.rating, read: p.read };
-  p.rating = p.rating === b.dataset.r ? null : b.dataset.r;
-  if (p.rating) p.read = true;
-  renderEnd(); syncItem(p); haptic();
-  if (p.rating) toast("Thanks — VentureDesk is learning");
-  try { await call("rate", { id: p.id, rating: p.rating }); } catch (err) { Object.assign(p, prev); renderEnd(); toast("Couldn't save: " + err.message); }
+$("#stars").addEventListener("click", async (e) => {
+  const b = e.target.closest("button[data-s]"); const p = S.piece; if (!b || !p) return;
+  const v = +b.dataset.s, prev = { stars: p.stars, read: p.read };
+  p.stars = p.stars === v ? null : v;
+  if (p.stars) p.read = true;
+  renderEnd(); syncItem(p); haptic(p.stars === 5 ? "success" : "light");
+  if (p.stars) toast("Rated " + "★".repeat(p.stars) + " — VentureDesk is learning");
+  try { await call("rate", { id: p.id, stars: p.stars }); } catch (err) { Object.assign(p, prev); renderEnd(); syncItem(p); toast("Couldn't save: " + err.message); }
 });
 const noteIn = $("#noteIn");
 noteIn.addEventListener("input", () => { noteIn.style.height = "auto"; noteIn.style.height = Math.min(140, noteIn.scrollHeight) + "px"; });

@@ -39,6 +39,8 @@ const CURRICULUM: [string, string][] = [
 ];
 
 const RATINGS: [string, string][] = [["useful", "💡 Useful"], ["interesting", "🤔 Interesting"], ["not_much", "😐 Not so much"]];
+const STAR_OF: Record<string, number> = { useful: 5, interesting: 4, not_much: 2 }; // legacy emoji buttons → stars
+const starsTxt = (n: number) => `${n}/5 stars`;
 
 const BRIEF_SYSTEM = (today: string) => `You are VentureDesk, a sharp business-intelligence briefing service for a first-time SaaS founder building a career management platform called VitaeCu. He wants to think like a CEO.
 
@@ -268,12 +270,12 @@ const displayOf = (job: Any, content: string) =>
 
 async function learningContext(cfg: Any) {
   const { data } = await sb.from("reactions")
-    .select("user_name,rating,feedback,message_log(type,title,headline)")
-    .or("rating.not.is.null,feedback.not.is.null")
+    .select("user_name,rating,stars,feedback,message_log(type,title,headline)")
+    .or("stars.not.is.null,rating.not.is.null,feedback.not.is.null")
     .order("updated_at", { ascending: false }).limit(10);
   const lines = (data ?? []).map((r: Any) => {
     const m = r.message_log ?? {};
-    return `- ${r.user_name} on ${m.type === "morning_brief" ? "Brief" : "Deep dive"} "${m.title ?? m.headline ?? "?"}"${r.rating ? ` → ${r.rating.replace("_", " ")}` : ""}${r.feedback ? ` → said: "${r.feedback}"` : ""}`;
+    return `- ${r.user_name} on ${m.type === "morning_brief" ? "Brief" : "Deep dive"} "${m.title ?? m.headline ?? "?"}"${r.stars ? ` → ${starsTxt(r.stars)}` : r.rating ? ` → ${r.rating.replace("_", " ")}` : ""}${r.feedback ? ` → said: "${r.feedback}"` : ""}`;
   });
   const { data: hl } = await sb.from("highlights").select("quote,message_log(title)").order("created_at", { ascending: false }).limit(8);
   const hls = (hl ?? []).map((h: Any) => `- "${String(h.quote).slice(0, 280)}" (from "${h.message_log?.title ?? "?"}")`);
@@ -284,8 +286,8 @@ async function updateProfile(cfg: Any, job: Any, who: string, rating: string | n
   const { text } = await claude({
     model: CHEAP_MODEL,
     max_tokens: 500,
-    system: `You maintain a compact profile of what a reader finds valuable in business-intelligence content (morning news briefs and long-form deep dives for a first-time SaaS founder). You get the current profile and one new reaction. Return ONLY the updated profile: at most ~140 words, short plain-text lines under "Values:", "Less of:", and "Notes:". Keep supported lessons, sharpen them with new evidence, drop contradicted ones. One "not so much" is weak evidence; words, saved highlights, and repeated patterns are strong evidence.`,
-    user: `Current profile:\n${cfg.style_profile}\n\nPiece: ${job.type === "morning_brief" ? "Morning Brief" : "Deep dive"} — ${job.title ?? job.headline ?? "?"}\nReaction from ${who}:${rating ? ` rated "${rating.replace("_", " ")}".` : ""}${feedback ? ` Said: "${feedback}"` : ""}${highlight ? ` Saved this passage as a highlight: "${highlight.slice(0, 600)}"` : ""}\n\nReturn the updated profile.`,
+    system: `You maintain a compact profile of what a reader finds valuable in business-intelligence content (morning news briefs and long-form deep dives for a first-time SaaS founder). You get the current profile and one new reaction. Return ONLY the updated profile: at most ~140 words, short plain-text lines under "Values:", "Less of:", and "Notes:". Keep supported lessons, sharpen them with new evidence, drop contradicted ones. Ratings are 1–5 stars: a single 3★ is weak evidence; 1–2★ or 5★, written words, saved highlights, and repeated patterns are strong evidence.`,
+    user: `Current profile:\n${cfg.style_profile}\n\nPiece: ${job.type === "morning_brief" ? "Morning Brief" : "Deep dive"} — ${job.title ?? job.headline ?? "?"}\nReaction from ${who}:${rating ? ` rated ${rating.replace("_", " ")}.` : ""}${feedback ? ` Said: "${feedback}"` : ""}${highlight ? ` Saved this passage as a highlight: "${highlight.slice(0, 600)}"` : ""}\n\nReturn the updated profile.`,
   });
   await sb.from("config").update({ style_profile: text, updated_at: new Date().toISOString() }).eq("id", 1);
 }
@@ -488,7 +490,7 @@ async function api(req: Request, route: string) {
       const { data: pcs } = await sb.from("message_log")
         .select("id,type,title,headline,custom_topic,topic_index,local_date,sent_at,created_at,words")
         .eq("status", "sent").order("sent_at", { ascending: false }).limit(200);
-      const { data: rx } = await sb.from("reactions").select("message_id,rating,read_at").eq("user_id", uid);
+      const { data: rx } = await sb.from("reactions").select("message_id,stars,read_at").eq("user_id", uid);
       const { data: hl } = await sb.from("highlights").select("message_id").eq("user_id", uid);
       const rmap = new Map((rx ?? []).map((r: Any) => [r.message_id, r]));
       const hcount = new Map<number, number>();
@@ -497,7 +499,7 @@ async function api(req: Request, route: string) {
         const r: Any = rmap.get(j.id);
         return {
           id: j.id, type: j.type, title: docOf(cfg, j).title, topic: topicOf(j), date: j.local_date, sent_at: j.sent_at,
-          mins: readMins(j.words), read: !!r?.read_at, rating: r?.rating ?? null, hl: hcount.get(j.id) ?? 0,
+          mins: readMins(j.words), read: !!r?.read_at, stars: r?.stars ?? null, hl: hcount.get(j.id) ?? 0,
           stories: j.type === "morning_brief" ? storiesOf(j.headline) : [],
         };
       });
@@ -511,7 +513,7 @@ async function api(req: Request, route: string) {
       const d = docOf(cfg, job);
       return json({
         id: job.id, type: job.type, title: d.title, topic: d.topic, date: d.date, mins: readMins(job.words ?? wordCount(job.content)),
-        blocks: pieceBlocks(job), read: !!r?.read_at, rating: r?.rating ?? null, note: r?.feedback ?? null, highlights: hl ?? [],
+        blocks: pieceBlocks(job), read: !!r?.read_at, stars: r?.stars ?? null, note: r?.feedback ?? null, highlights: hl ?? [],
       });
     }
     case "read": {
@@ -525,11 +527,12 @@ async function api(req: Request, route: string) {
     case "rate": {
       const job = await getJob(Number(body.id));
       if (!job) return json({ error: "not found" }, 404);
-      const rating = RATINGS.some(([k]) => k === body.rating) ? body.rating : null;
+      const n = Math.round(Number(body.stars));
+      const stars = n >= 1 && n <= 5 ? n : null;
       const r = await myRx(job.id);
-      await upsertRx(job.id, { rating, read_at: r?.read_at ?? nowIso });
+      await upsertRx(job.id, { stars, rating: null, read_at: r?.read_at ?? nowIso });
       if (!r?.read_at) EdgeRuntime.waitUntil(refreshCards(cfg, job, true));
-      if (rating && rating !== r?.rating) EdgeRuntime.waitUntil(updateProfile(cfg, job, uname, rating, null).catch((e) => console.error(e)));
+      if (stars && stars !== r?.stars) EdgeRuntime.waitUntil(updateProfile(cfg, job, uname, starsTxt(stars), null).catch((e) => console.error(e)));
       return json({ ok: true, read: true });
     }
     case "note": {
@@ -538,7 +541,7 @@ async function api(req: Request, route: string) {
       if (!job || !text) return json({ error: "bad request" }, 400);
       const r = await myRx(job.id);
       await upsertRx(job.id, { feedback: r?.feedback ? `${r.feedback} | ${text}` : text, read_at: r?.read_at ?? nowIso });
-      EdgeRuntime.waitUntil(updateProfile(cfg, job, uname, r?.rating ?? null, text).catch((e) => console.error(e)));
+      EdgeRuntime.waitUntil(updateProfile(cfg, job, uname, r?.stars ? starsTxt(r.stars) : null, text).catch((e) => console.error(e)));
       return json({ ok: true });
     }
     case "hl_add": {
@@ -598,7 +601,7 @@ async function api(req: Request, route: string) {
 async function stats(cfg: Any) {
   const since = new Date(Date.now() - 7 * 86400e3).toISOString();
   const { data: pieces } = await sb.from("message_log").select("id,sent_at").eq("status", "sent").order("sent_at", { ascending: false }).limit(60);
-  const { data: rx } = await sb.from("reactions").select("message_id,user_id,user_name,rating,read_at");
+  const { data: rx } = await sb.from("reactions").select("message_id,user_id,user_name,stars,read_at");
   const { count: hlWeek } = await sb.from("highlights").select("id", { count: "exact", head: true }).gt("created_at", since);
   const who = await members();
   const all = pieces ?? [];
@@ -611,8 +614,9 @@ async function stats(cfg: Any) {
     const read = week.filter((p: Any) => readSet.has(p.id)).length;
     let streak = 0;
     for (const p of all) { if (readSet.has(p.id)) streak++; else break; }
-    const c = (k: string) => mine.filter((r: Any) => weekIds.has(r.message_id) && r.rating === k).length;
-    return `${name}\n  Read ${read} of ${week.length}${week.length ? ` (${Math.round((read / week.length) * 100)}%)` : ""} · streak ${streak}\n  💡 ${c("useful")} · 🤔 ${c("interesting")} · 😐 ${c("not_much")}`;
+    const rated = mine.filter((r: Any) => weekIds.has(r.message_id) && r.stars);
+    const avg = rated.length ? (rated.reduce((a: number, r: Any) => a + r.stars, 0) / rated.length).toFixed(1) : null;
+    return `${name}\n  Read ${read} of ${week.length}${week.length ? ` (${Math.round((read / week.length) * 100)}%)` : ""} · streak ${streak}\n  ${avg ? `★ ${avg} average across ${rated.length} rated` : "No ratings yet"}`;
   });
   return `📊 Last 7 days\n\n${lines.join("\n\n")}\n\n✨ Highlights saved: ${hlWeek ?? 0}\nNext deep dive: ${CURRICULUM[cfg.topic_index][0]}`;
 }
@@ -664,7 +668,7 @@ async function handleUpdate(u: Any) {
       await tg("answerCallbackQuery", { callback_query_id: q.id, text: `Noted for ${uname}: ${label}` });
       if (mine?.rating === val) return;
       await sb.from("reactions").upsert({
-        message_id: id, user_id: uid, user_name: uname, rating: val, read_at: mine?.read_at ?? nowIso, updated_at: nowIso,
+        message_id: id, user_id: uid, user_name: uname, rating: val, stars: STAR_OF[val] ?? null, read_at: mine?.read_at ?? nowIso, updated_at: nowIso,
       }, { onConflict: "message_id,user_id" });
       if (!job.read_at) await sb.from("message_log").update({ read_at: nowIso }).eq("id", id);
       await tg("editMessageReplyMarkup", { chat_id: chatId, message_id: q.message.message_id, reply_markup: keyboard(id, await aggOf(id)) });
@@ -757,7 +761,7 @@ async function handleUpdate(u: Any) {
     read_at: mine?.read_at ?? nowIso, updated_at: nowIso,
   }, { onConflict: "message_id,user_id" });
   await tg("setMessageReaction", { chat_id: chatId, message_id: msg.message_id, reaction: [{ type: "emoji", emoji: "👍" }] });
-  await updateProfile(cfg, job, uname, mine?.rating ?? null, text);
+  await updateProfile(cfg, job, uname, mine?.stars ? starsTxt(mine.stars) : null, text);
 }
 
 async function register(cfg: Any) {
