@@ -25,7 +25,10 @@ const CORS = {
   "Access-Control-Max-Age": "86400",
 };
 
-const CURRICULUM: [string, string][] = [
+// Tech topic: CEO judgment about technology, not a technical tutorial.
+const TECH_LENS = `This topic is about technology seen through a CEO's eyes — judgment, not a tutorial. Keep the same MBA-style essay voice as every other deep dive. Each time this topic comes up, pick ONE angle from the subtopics (or a sharp cross-cutting question) and treat it as a business decision: who owns it, what it costs, what can go wrong, and what good judgment looks like. Explain a technical term only as far as the decision requires — never a glossary, never code. Use real company examples where technology choices made or broke the business. Before the Founder's Challenge, add a short section titled "Questions Worth Asking Your Engineer": 4–6 questions, each with one line on what a reassuring answer and a worrying answer sound like.`;
+
+const CURRICULUM: [string, string, string?][] = [
   ["Monetization", "pricing strategy, freemium, usage-based pricing, tier design, value metric selection, expansion revenue"],
   ["Fundraising & Capital", "pre-seed to Series A mechanics, SAFEs, cap tables, investor psychology, pitch narrative, term sheet red flags, VC vs. bootstrapping"],
   ["Go-To-Market Strategy", "channel selection, ICP definition, positioning, launch sequencing, PLG vs. sales-led, category creation"],
@@ -36,6 +39,7 @@ const CURRICULUM: [string, string][] = [
   ["Competitive Strategy", "moats, defensibility frameworks, positioning, responding to well-funded competitors"],
   ["Unit Economics & Finance", "CAC, LTV, payback, burn, runway, founder financial modeling"],
   ["Leadership & CEO Craft", "decisions under uncertainty, board management, communication as leadership, managing yourself as a first-time CEO"],
+  ["Technology Leadership for the Non-Technical CEO", "how the product's architecture shapes the business; data as an asset and a liability; build vs. buy and vendor lock-in; the AI layer's cost structure and quality risk; security and privacy as a sales asset for enterprise buyers; payments and billing infrastructure; infrastructure cost as a gross-margin lever; shipping speed vs. technical debt; reliability and incident response; evaluating and trusting your engineering team", TECH_LENS],
 ];
 
 const RATINGS: [string, string][] = [["useful", "💡 Useful"], ["interesting", "🤔 Interesting"], ["not_much", "😐 Not so much"]];
@@ -50,9 +54,9 @@ Be dense, direct, and analytically rigorous. No preamble, no sign-off, no filler
 
 FORMATTING (strict): Output Telegram-compatible HTML only. Allowed tags: <b>, <i>, <a href="...">. No other tags, no Markdown, no headings with #, no bullet characters other than "•". Use blank lines between items.`;
 
-const DIVE_SYSTEM = (name: string, subs: string) => `You are VentureDesk, a demanding business mentor delivering a long-form deep dive to a first-time SaaS founder building a career management platform called VitaeCu. He is learning to operate as a CEO.
+const DIVE_SYSTEM = (name: string, subs: string, extra = "") => `You are VentureDesk, a demanding business mentor delivering a long-form deep dive to a first-time SaaS founder building a career management platform called VitaeCu. He is learning to operate as a CEO.
 
-Tonight's topic: ${name}${subs ? ` — ${subs}` : ""}
+Tonight's topic: ${name}${subs ? ` — ${subs}` : ""}${extra ? `\n\n${extra}` : ""}
 
 RESEARCH: Before writing, use web search (at most 3 searches) to verify the specific startup examples, numbers, and claims you plan to rely on. Prefer primary or high-quality sources: company blogs and filings, founder/investor essays and interviews, reputable business press. If you can't verify a specific figure, drop it or state it without a number. Never narrate your searching.
 
@@ -72,7 +76,7 @@ const HELP = `Commands:
 /deepdive — next curriculum deep dive now
 /deepdive <any topic> — custom deep dive (doesn't move the curriculum)
 /next — what tonight's deep dive covers
-/topic <1-10> — choose the next curriculum topic
+/topic <1-11> — choose the next curriculum topic
 /times — show schedule · /times brief 6:30am · /times dive 8pm
 /stats — reading accountability
 /profile — what I've learned about your taste
@@ -317,10 +321,17 @@ async function process(cfg: Any, job: Any) {
         if (firstBold > 0 && firstBold < 600) content = content.slice(firstBold);
         title = `Morning Brief — ${new Intl.DateTimeFormat("en-US", { timeZone: cfg.timezone, month: "long", day: "numeric", year: "numeric" }).format(new Date())}`;
       } else {
-        const [name, subs] = job.custom_topic ? [job.custom_topic, ""] : CURRICULUM[job.topic_index ?? 0];
+        const [name, subs, extra] = job.custom_topic ? [job.custom_topic, "", ""] : CURRICULUM[job.topic_index ?? 0];
         topic = name;
+        let prior = "";
+        if (!job.custom_topic) {
+          const { data: prev } = await sb.from("message_log").select("title,content").eq("type", "evening_deep_dive").eq("status", "sent")
+            .eq("topic_index", job.topic_index ?? 0).is("custom_topic", null).neq("id", job.id).order("sent_at", { ascending: false }).limit(8);
+          const seen = (prev ?? []).map((p: Any) => p.title ? `"${p.title}"` : `untitled piece opening: "${teaserOf(p.content ?? "", 160)}"`);
+          if (seen.length) prior = `\n\nEarlier deep dives on this same topic (take a clearly different angle; don't repeat their core arguments, frameworks, or examples):\n${seen.map((t: string) => `- ${t}`).join("\n")}`;
+        }
         res = await claude({
-          model: MODEL, system: DIVE_SYSTEM(name, subs) + ctx, user: `Write the full deep dive on ${name} now.`,
+          model: MODEL, system: DIVE_SYSTEM(name, subs, extra) + prior + ctx, user: `Write the full deep dive on ${name} now.`,
           max_tokens: 16000, effort: "medium", tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
         });
         const t = extractTitle(res.text);
