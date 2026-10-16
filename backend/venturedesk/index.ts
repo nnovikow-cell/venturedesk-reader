@@ -79,6 +79,7 @@ const HELP = `Commands:
 /topic <1-11> — choose the next curriculum topic
 /times — show schedule · /times brief 6:30am · /times dive 8pm
 /stats — reading accountability
+/drive — Google Drive auto-save status and folder
 /profile — what I've learned about your taste
 /pause · /resume — stop/start scheduled sends
 
@@ -368,6 +369,7 @@ async function process(cfg: Any, job: Any) {
 
     await sb.from("message_log").update({ status: "sent", sent_at: new Date().toISOString(), error: null }).eq("id", job.id);
     if (type === "evening_deep_dive" && !job.challenge) EdgeRuntime.waitUntil(extractChallenge(job).catch((e) => console.error("challenge", e)));
+    if (type === "evening_deep_dive" && cfg.drive_url) EdgeRuntime.waitUntil(saveToDrive(cfg, job).catch((e) => console.error("drive", e)));
     if (type === "evening_deep_dive" && !job.custom_topic && job.topic_index !== null) {
       await sb.from("config").update({ topic_index: (job.topic_index + 1) % CURRICULUM.length, updated_at: new Date().toISOString() })
         .eq("id", 1).eq("topic_index", job.topic_index);
@@ -437,6 +439,7 @@ async function tick() {
   const cfg = await getConfig();
   if (!cfg.chat_id) return;
   await nudges(cfg).catch((e) => console.error("nudges", e));
+  if (cfg.drive_url) await backfillDrive(cfg, 1, 3).catch((e) => console.error("drive retry", e));
   if (!cfg.enabled) return;
   const now = localNow(cfg.timezone);
   const slots: [JobType, string][] = [["morning_brief", cfg.brief_time], ["evening_deep_dive", cfg.dive_time]];
@@ -447,6 +450,47 @@ async function tick() {
       await runScheduled(type).catch((e) => console.error(type, e));
     }
   }
+}
+
+// ---------- Google Drive auto-save (via the owner's Apps Script web app) ----------
+
+function toBase64(bytes: Uint8Array) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+async function driveCall(cfg: Any, payload: Any) {
+  const r = await fetch(cfg.drive_url, {
+    method: "POST", headers: { "content-type": "application/json" }, redirect: "follow",
+    body: JSON.stringify({ secret: cfg.drive_secret, ...payload }), signal: AbortSignal.timeout(60_000),
+  });
+  const j = await r.json().catch(() => null);
+  if (!j?.ok) throw new Error(`drive: ${j?.error ?? `HTTP ${r.status}`}`);
+  return j;
+}
+
+/** Saves a deep dive's PDF to Drive › VentureDesk › Deep Dives once; records the file link on the piece. */
+async function saveToDrive(cfg: Any, job: Any) {
+  if (!cfg.drive_url || job.type !== "evening_deep_dive" || job.drive_file_id || !job.content) return null;
+  const doc = docOf(cfg, job);
+  const name = `${job.local_date} — ${doc.title.replace(/[\\/:*?"<>|]+/g, "-").slice(0, 120)}.pdf`;
+  const j = await driveCall(cfg, { folder: "Deep Dives", name, mime: "application/pdf", data: toBase64(await toPdf(doc)) });
+  await sb.from("message_log").update({ drive_file_id: j.id, drive_url: j.url }).eq("id", job.id);
+  if (j.folderUrl && j.folderUrl !== cfg.drive_folder_url) await sb.from("config").update({ drive_folder_url: j.folderUrl }).eq("id", 1);
+  return j;
+}
+
+async function backfillDrive(cfg: Any, limit = 50, sinceDays?: number) {
+  if (!cfg.drive_url) return { saved: 0, failed: 0 };
+  let q = sb.from("message_log").select("*").eq("type", "evening_deep_dive").eq("status", "sent").is("drive_file_id", null).not("content", "is", null);
+  if (sinceDays) q = q.gt("sent_at", new Date(Date.now() - sinceDays * 86400e3).toISOString());
+  const { data } = await q.order("sent_at", { ascending: true }).limit(limit);
+  let saved = 0, failed = 0, error = "";
+  for (const j of data ?? []) {
+    try { await saveToDrive(cfg, j); saved++; } catch (e) { failed++; error = String((e as Error).message ?? e); console.error("drive", e); }
+  }
+  return { saved, failed, error };
 }
 
 // ---------- Founder's Challenge (homework) ----------
@@ -612,7 +656,7 @@ async function api(req: Request, route: string) {
       const qn = job.challenge?.questions?.length ?? 0;
       const hw = qn ? { t: qn, a: Math.min((await answeredCounts(uid, [job.id])).get(job.id) ?? 0, qn) } : (job.type === "evening_deep_dive" && job.challenge == null && challengeText(job.content ?? "") ? { t: 0, a: 0 } : null);
       return json({
-        hw, id: job.id, type: job.type, title: d.title, topic: d.topic, date: d.date, mins: readMins(job.words ?? wordCount(job.content)),
+        hw, drive: job.drive_url ?? null, id: job.id, type: job.type, title: d.title, topic: d.topic, date: d.date, mins: readMins(job.words ?? wordCount(job.content)),
         blocks: pieceBlocks(job), read: !!r?.read_at, stars: r?.stars ?? null, note: r?.feedback ?? null, highlights: hl ?? [],
       });
     }
@@ -861,6 +905,15 @@ async function handleUpdate(u: Any) {
       await sb.from("config").update({ [field]: t }).eq("id", 1);
       return say(`${field === "brief_time" ? "Morning Brief" : "Deep Dive"} now at ${fmtTime(t)}.`);
     }
+    case "/drive": {
+      if (!cfg.drive_url) return say("Google Drive isn't connected yet.");
+      const { count: saved } = await sb.from("message_log").select("id", { count: "exact", head: true }).eq("type", "evening_deep_dive").not("drive_url", "is", null);
+      const { count: pending } = await sb.from("message_log").select("id", { count: "exact", head: true }).eq("type", "evening_deep_dive").eq("status", "sent").is("drive_file_id", null);
+      return tg("sendMessage", {
+        chat_id: chatId, text: `☁️ Google Drive auto-save is on.\n${saved ?? 0} deep dives saved${pending ? ` · ${pending} waiting` : ""}.\nEvery new deep dive is saved as a PDF to VentureDesk › Deep Dives.`,
+        reply_markup: cfg.drive_folder_url ? { inline_keyboard: [[{ text: "📂 Open the folder", url: cfg.drive_folder_url }]] } : undefined,
+      });
+    }
     case "/stats":
       return say(await stats(cfg));
     case "/profile":
@@ -904,6 +957,7 @@ async function register(cfg: Any) {
       { command: "topic", description: "Choose the next curriculum topic" },
       { command: "times", description: "Show or change the schedule" },
       { command: "stats", description: "Reading accountability" },
+      { command: "drive", description: "Google Drive auto-save status" },
       { command: "profile", description: "What I've learned about your taste" },
       { command: "pause", description: "Pause scheduled sends" },
       { command: "resume", description: "Resume scheduled sends" },
@@ -931,6 +985,12 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     if (body.action === "register") return Response.json(await register(cfg));
     if (body.action === "backfill_challenges") return Response.json({ extracted: await backfillChallenges(50) });
+    if (body.action === "drive_ping") {
+      const j = await driveCall(cfg, { action: "ping", folder: "Deep Dives" });
+      await sb.from("config").update({ drive_folder_url: j.folderUrl }).eq("id", 1);
+      return Response.json(j);
+    }
+    if (body.action === "drive_backfill") return Response.json(await backfillDrive(cfg, 50));
     if (body.action === "run" && (body.type === "morning_brief" || body.type === "evening_deep_dive")) {
       EdgeRuntime.waitUntil(runScheduled(body.type, !!body.force).catch((e) => console.error("run", e)));
       return Response.json({ started: body.type });

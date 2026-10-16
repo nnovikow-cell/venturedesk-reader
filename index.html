@@ -253,6 +253,7 @@ html[data-font="sans"] .qhead h1{font-family:var(--sans);font-weight:700}
         <button class="btn ghost" id="pdfBtn">📄 PDF to chat</button>
         <button class="btn ghost" id="toLib">📚 Library</button>
       </div>
+      <button class="btn ghost" id="driveBtn" style="margin-top:8px" hidden>☁️ Open in Google Drive</button>
     </section>
   </div>
 </section>
@@ -658,6 +659,7 @@ function renderHwButtons(p) {
   eb.hidden = false; eb.innerHTML = `✍️ Founder's Challenge${count ? ` · ${count} answered` : ""}`;
 }
 $("#hwEndBtn").addEventListener("click", () => S.piece && openQuiz(S.piece.id, "read"));
+$("#driveBtn").addEventListener("click", () => S.piece && S.piece.drive && openExternal(S.piece.drive));
 function setTab(t) {
   S.tab = t;
   $$(".seg button").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
@@ -829,6 +831,7 @@ function renderPiece(p) {
   $("#tip").hidden = p.highlights.length > 0 || !!lsGet("vd.tipSeen");
   renderEnd();
   renderHwButtons(p);
+  $("#driveBtn").hidden = !p.drive;
   $("#end").hidden = false;
 }
 function renderEnd() {
